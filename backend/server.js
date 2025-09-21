@@ -20,6 +20,9 @@ const { connectDB } = require('./config/database');
 
 const app = express();
 
+// Trust proxy for DigitalOcean
+app.set('trust proxy', true);
+
 // Connect to database
 connectDB();
 
@@ -62,6 +65,16 @@ app.get('/api/health', (req, res) => {
     environment: process.env.NODE_ENV
   });
 });
+
+// Serve frontend build files in production
+if (process.env.NODE_ENV === 'production') {
+  const path = require('path');
+  app.use(express.static(path.join(__dirname, '../frontend/build')));
+  
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
+  });
+}
 
 // Error handling middleware (must be last)
 app.use(errorHandler);

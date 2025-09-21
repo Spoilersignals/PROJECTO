@@ -1,83 +1,76 @@
-Sep 21 20:45:42  [34m╭────────────[34m[30m[44m git repo clone [0m[0m[34m───────────╼[0m
-Sep 21 20:45:42  [34m│[0m [34m › fetching app source code[0m
-Sep 21 20:45:42  [34m│[0m => Selecting branch "main"
-Sep 21 20:45:42  [34m│[0m => Checking out commit "06b67cd38edcb85c8989ee647c14440916061d17"
-Sep 21 20:45:42  [34m│[0m 
-Sep 21 20:45:42  [34m│[0m [32m ✔ cloned repo to [35m/workspace[0m[0m
-Sep 21 20:45:42  [34m╰────────────────────────────────────────╼[0m
-Sep 21 20:45:42  
-Sep 21 20:45:42  [34m╭────────────[34m[30m[44m buildpack detection [0m[0m[34m───────────╼[0m
-Sep 21 20:45:42  [34m│[0m [34m › using Ubuntu 22.04 stack[0m
-Sep 21 20:45:43  [34m│[0m Detected the following buildpacks suitable to build your app:
-Sep 21 20:45:43  [34m│[0m 
-Sep 21 20:45:43  [34m│[0m    digitalocean/nodejs-appdetect  v0.0.6    
-Sep 21 20:45:43  [34m│[0m    heroku/nodejs                  v0.296.5  (Node.js)
-Sep 21 20:45:43  [34m│[0m    digitalocean/procfile          v0.1.0    (Procfile)
-Sep 21 20:45:43  [34m│[0m    digitalocean/custom            v0.2.0    (Custom Build Command)
-Sep 21 20:45:43  [34m╰─────────────────────────────────────────────╼[0m
-Sep 21 20:45:43  
-Sep 21 20:45:43  [34m╭────────────[34m[30m[44m app build [0m[0m[34m───────────╼[0m
-Sep 21 20:45:43  [34m│[0m [33;1mWarning: [0mno analyzed metadata found at path '/layers/analyzed.toml'
-Sep 21 20:45:43  [34m│[0m Timer: Builder started at 2025-09-21T20:45:43Z
-Sep 21 20:45:44  [34m│[0m        
-Sep 21 20:45:44  [34m│[0m -----> Creating runtime environment
-Sep 21 20:45:44  [34m│[0m        
-Sep 21 20:45:44  [34m│[0m        NPM_CONFIG_LOGLEVEL=error
-Sep 21 20:45:44  [34m│[0m        NODE_VERBOSE=false
-Sep 21 20:45:44  [34m│[0m        NODE_ENV=
-Sep 21 20:45:44  [34m│[0m        NODE_MODULES_CACHE=true
-Sep 21 20:45:44  [34m│[0m        
-Sep 21 20:45:44  [34m│[0m -----> Installing binaries
-Sep 21 20:45:44  [34m│[0m        engines.node (package.json):   >=16.0.0
-Sep 21 20:45:44  [34m│[0m        engines.npm (package.json):    >=8.0.0
-Sep 21 20:45:44  [34m│[0m        
-Sep 21 20:45:44  [34m│[0m        Resolving node version >=16.0.0...
-Sep 21 20:45:44  [34m│[0m        Downloading and installing node 24.2.0...
-Sep 21 20:45:53  [34m│[0m        Bootstrapping npm >=8.0.0 (replacing 11.3.0)...
-Sep 21 20:45:53  [34m│[0m npm warn Unknown cli config "--unsafe-perm". This will stop working in the next major version of npm.
-Sep 21 20:45:57  [34m│[0m        npm 11.6.0 installed
-Sep 21 20:45:57  [34m│[0m        
-Sep 21 20:45:57  [34m│[0m -----> Installing dependencies
-Sep 21 20:45:57  [34m│[0m        Installing node modules (package.json)
-Sep 21 20:45:58  [34m│[0m        
-Sep 21 20:45:58  [34m│[0m        up to date, audited 1 package in 219ms
-Sep 21 20:45:58  [34m│[0m        
-Sep 21 20:45:58  [34m│[0m        found 0 vulnerabilities
-Sep 21 20:45:58  [34m│[0m        
-Sep 21 20:45:58  [34m│[0m -----> Build
-Sep 21 20:45:58  [34m│[0m        
-Sep 21 20:45:58  [34m│[0m -----> Caching build
-Sep 21 20:45:58  [34m│[0m        - node_modules (nothing to cache)
-Sep 21 20:45:58  [34m│[0m        
-Sep 21 20:45:58  [34m│[0m -----> Pruning devDependencies
-Sep 21 20:45:58  [34m│[0m        Skipping because NODE_ENV is not 'production'
-Sep 21 20:45:58  [34m│[0m        
-Sep 21 20:45:58  [34m│[0m -----> Build succeeded!
-Sep 21 20:45:58  [34m│[0m Timer: Builder ran for 14.998239153s and ended at 2025-09-21T20:45:58Z
-Sep 21 20:45:58  [34m╰───────────────────────────────────╼[0m
-Sep 21 20:45:58  
-Sep 21 20:45:58  [34m╭────────────[34m[30m[44m app upload [0m[0m[34m───────────╼[0m
-Sep 21 20:45:58  [34m│[0m [34m › uploading app container image to DOCR[0m
-Sep 21 20:45:58  [34m│[0m [33;1mWarning: [0mno analyzed metadata found at path '/layers/analyzed.toml'
-Sep 21 20:46:01  [34m│[0m Timer: Exporter started at 2025-09-21T20:46:01Z
-Sep 21 20:46:01  [34m│[0m Adding layer 'heroku/nodejs:profile'
-Sep 21 20:46:04  [34m│[0m Adding 1/1 app layer(s)
-Sep 21 20:46:04  [34m│[0m Adding layer 'buildpacksio/lifecycle:launcher'
-Sep 21 20:46:04  [34m│[0m Adding layer 'buildpacksio/lifecycle:config'
-Sep 21 20:46:04  [34m│[0m Adding layer 'buildpacksio/lifecycle:process-types'
-Sep 21 20:46:04  [34m│[0m Adding label 'io.buildpacks.lifecycle.metadata'
-Sep 21 20:46:04  [34m│[0m Adding label 'io.buildpacks.build.metadata'
-Sep 21 20:46:04  [34m│[0m Adding label 'io.buildpacks.project.metadata'
-Sep 21 20:46:04  [34m│[0m Setting default process type 'web'
-Sep 21 20:46:04  [34m│[0m Timer: Saving <image-0>... started at 2025-09-21T20:46:04Z
-Sep 21 20:46:18  [34m│[0m *** Images (sha256:18787924ecb038bb39d6af3cff8dfd569a3152c0064626fb2fee823360dfbcc4):
-Sep 21 20:46:18  [34m│[0m       <image-1>
-Sep 21 20:46:18  [34m│[0m Timer: Saving <image-2>... ran for 14.208535278s and ended at 2025-09-21T20:46:18Z
-Sep 21 20:46:18  [34m│[0m Timer: Exporter ran for 17.561749007s and ended at 2025-09-21T20:46:18Z
-Sep 21 20:46:18  [34m│[0m Timer: Cache started at 2025-09-21T20:46:18Z
-Sep 21 20:46:18  [34m│[0m Layer cache not found
-Sep 21 20:46:18  [34m│[0m Adding cache layer 'heroku/nodejs:shim'
-Sep 21 20:46:19  [34m│[0m Timer: Cache ran for 679.110202ms and ended at 2025-09-21T20:46:19Z
-Sep 21 20:46:19  [34m│[0m [32m ✔ uploaded app image to DOCR[0m
-Sep 21 20:46:19  [34m╰────────────────────────────────────╼[0m
-Sep 21 20:46:19  
+Sep 21 23:40:26  
+Sep 21 23:40:26  > smart-wifi-attendance-system@1.0.0 start
+Sep 21 23:40:26  > cd backend && npm install && npm start
+Sep 21 23:40:26  
+Sep 21 23:40:30  
+Sep 21 23:40:30  up to date, audited 216 packages in 4s
+Sep 21 23:40:30  
+Sep 21 23:40:30  53 packages are looking for funding
+Sep 21 23:40:30    run `npm fund` for details
+Sep 21 23:40:30  
+Sep 21 23:40:30  1 high severity vulnerability
+Sep 21 23:40:30  
+Sep 21 23:40:30  Some issues need review, and may require choosing
+Sep 21 23:40:30  a different dependency.
+Sep 21 23:40:30  
+Sep 21 23:40:30  Run `npm audit` for details.
+Sep 21 23:40:31  
+Sep 21 23:40:31  > smart-wifi-attendance-backend@1.0.0 start
+Sep 21 23:40:31  > node server.js
+Sep 21 23:40:31  
+Sep 21 23:40:33  Server running in production mode on port 8080
+Sep 21 23:40:40  
+Sep 21 23:40:40  > smart-wifi-attendance-system@1.0.0 start
+Sep 21 23:40:40  > cd backend && npm install && npm start
+Sep 21 23:40:40  
+Sep 21 23:40:46  
+Sep 21 23:40:46  up to date, audited 216 packages in 5s
+Sep 21 23:40:46  
+Sep 21 23:40:46  53 packages are looking for funding
+Sep 21 23:40:46    run `npm fund` for details
+Sep 21 23:40:46  
+Sep 21 23:40:46  1 high severity vulnerability
+Sep 21 23:40:46  
+Sep 21 23:40:46  Some issues need review, and may require choosing
+Sep 21 23:40:46  a different dependency.
+Sep 21 23:40:46  
+Sep 21 23:40:46  Run `npm audit` for details.
+Sep 21 23:40:47  
+Sep 21 23:40:47  > smart-wifi-attendance-backend@1.0.0 start
+Sep 21 23:40:47  > node server.js
+Sep 21 23:40:47  
+Sep 21 23:40:50  Server running in production mode on port 8080
+Sep 21 23:41:03  Database connection error: MongooseServerSelectionError: Could not connect to any servers in your MongoDB Atlas cluster. One common reason is that you're trying to access the database from an IP that isn't whitelisted. Make sure your current IP address is on your Atlas cluster's IP whitelist: https://www.mongodb.com/docs/atlas/security-whitelist/
+Sep 21 23:41:03      at _handleConnectionErrors (/workspace/backend/node_modules/mongoose/lib/connection.js:816:11)
+Sep 21 23:41:03      at NativeConnection.openUri (/workspace/backend/node_modules/mongoose/lib/connection.js:791:11)
+Sep 21 23:41:03      at async connectDB (/workspace/backend/config/database.js:5:18) {
+Sep 21 23:41:03    reason: TopologyDescription {
+Sep 21 23:41:03      type: 'ReplicaSetNoPrimary',
+Sep 21 23:41:03      servers: Map(3) {
+Sep 21 23:41:03        'ac-qvoeueu-shard-00-00.wsk5pdd.mongodb.net:27017' => [ServerDescription],
+Sep 21 23:41:03        'ac-qvoeueu-shard-00-01.wsk5pdd.mongodb.net:27017' => [ServerDescription],
+Sep 21 23:41:03        'ac-qvoeueu-shard-00-02.wsk5pdd.mongodb.net:27017' => [ServerDescription]
+Sep 21 23:41:03      },
+Sep 21 23:41:03      stale: false,
+Sep 21 23:41:03      compatible: true,
+Sep 21 23:41:03      heartbeatFrequencyMS: 10000,
+Sep 21 23:41:03      localThresholdMS: 15,
+Sep 21 23:41:03      setName: 'atlas-np5unj-shard-0',
+Sep 21 23:41:03      maxElectionId: null,
+Sep 21 23:41:03      maxSetVersion: null,
+Sep 21 23:41:03      commonWireVersion: 0,
+Sep 21 23:41:03      logicalSessionTimeoutMinutes: null
+Sep 21 23:41:03    },
+Sep 21 23:41:03    code: undefined
+Sep 21 23:41:03  }
+Sep 21 23:41:06  ValidationError: The 'X-Forwarded-For' header is set but the Express 'trust proxy' setting is false (default). This could indicate a misconfiguration which would prevent express-rate-limit from accurately identifying users. See https://express-rate-limit.github.io/ERR_ERL_UNEXPECTED_X_FORWARDED_FOR/ for more information.
+Sep 21 23:41:06      at Object.xForwardedForHeader (/workspace/backend/node_modules/express-rate-limit/dist/index.cjs:185:13)
+Sep 21 23:41:06      at wrappedValidations.<computed> [as xForwardedForHeader] (/workspace/backend/node_modules/express-rate-limit/dist/index.cjs:397:22)
+Sep 21 23:41:06      at Object.keyGenerator (/workspace/backend/node_modules/express-rate-limit/dist/index.cjs:658:20)
+Sep 21 23:41:06      at /workspace/backend/node_modules/express-rate-limit/dist/index.cjs:710:32
+Sep 21 23:41:06      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+Sep 21 23:41:06      at async /workspace/backend/node_modules/express-rate-limit/dist/index.cjs:691:5 {
+Sep 21 23:41:06    code: 'ERR_ERL_UNEXPECTED_X_FORWARDED_FOR',
+Sep 21 23:41:06    help: 'https://express-rate-limit.github.io/ERR_ERL_UNEXPECTED_X_FORWARDED_FOR/'
+Sep 21 23:41:06  }
+Sep 21 23:41:06  ::ffff:10.244.5.135 - - [21/Sep/2025:23:41:06 +0000] "GET / HTTP/1.1" 404 139 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
