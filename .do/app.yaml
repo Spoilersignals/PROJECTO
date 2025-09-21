@@ -1,0 +1,52 @@
+name: smart-wifi-attendance
+services:
+- name: backend
+  source_dir: /backend
+  github:
+    repo: Spoilersignals/BBIT
+    branch: main
+  run_command: npm start
+  build_command: npm install
+  environment_slug: node-js
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  http_port: 5000
+  envs:
+  - key: NODE_ENV
+    value: production
+  - key: PORT
+    value: "5000"
+  - key: MONGODB_URI
+    value: YOUR_MONGODB_CONNECTION_STRING
+  - key: JWT_SECRET
+    value: YOUR_JWT_SECRET_HERE
+  - key: JWT_REFRESH_SECRET
+    value: YOUR_REFRESH_SECRET_HERE
+  - key: JWT_EXPIRES_IN
+    value: 1h
+  - key: JWT_REFRESH_EXPIRES_IN
+    value: 7d
+  - key: BCRYPT_ROUNDS
+    value: "12"
+
+- name: frontend
+  source_dir: /frontend
+  github:
+    repo: Spoilersignals/BBIT
+    branch: main
+  build_command: npm run build
+  run_command: npx serve -s build -l $PORT
+  environment_slug: node-js
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  http_port: 8080
+  envs:
+  - key: REACT_APP_API_URL
+    value: ${backend.PUBLIC_URL}/api
+  - key: GENERATE_SOURCEMAP
+    value: "false"
+
+databases:
+- name: mongodb
+  engine: MONGODB
+  version: "5"
