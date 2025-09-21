@@ -9,8 +9,9 @@
     "install-all": "npm run install-backend && npm run install-frontend",
     "dev-backend": "cd backend && npm run dev",
     "dev-frontend": "cd frontend && npm start",
+    "build": "npm run install-all && npm run build-frontend",
     "build-frontend": "cd frontend && npm run build",
-    "start": "npm run dev-backend"
+    "start": "cd backend && npm install && npm start"
   },
   "keywords": [
     "attendance",
