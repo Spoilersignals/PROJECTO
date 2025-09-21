@@ -1,0 +1,216 @@
+import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
+import Button from '../common/Button';
+import Input from '../common/Input';
+
+const RegisterForm: React.FC = () => {
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    role: 'student' as 'student' | 'lecturer',
+    studentId: '',
+    department: '',
+  });
+  
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isLoading, setIsLoading] = useState(false);
+
+  const { register } = useAuth();
+  const navigate = useNavigate();
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+
+    if (!formData.firstName) newErrors.firstName = 'First name is required';
+    if (!formData.lastName) newErrors.lastName = 'Last name is required';
+    if (!formData.email) {
+      newErrors.email = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email';
+    }
+    if (!formData.password) {
+      newErrors.password = 'Password is required';
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
+    }
+    if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match';
+    }
+    if (formData.role === 'student' && !formData.studentId) {
+      newErrors.studentId = 'Student ID is required for students';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateForm()) return;
+
+    setIsLoading(true);
+    try {
+      const registerData = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        password: formData.password,
+        role: formData.role,
+        ...(formData.role === 'student' && { studentId: formData.studentId }),
+        ...(formData.department && { department: formData.department }),
+      };
+
+      await register(registerData);
+      navigate('/dashboard');
+    } catch (error: any) {
+      setErrors({
+        general: error.response?.data?.message || 'Registration failed. Please try again.'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Create your account
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Smart Wi-Fi Bound Attendance System
+          </p>
+        </div>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="First Name"
+                name="firstName"
+                value={formData.firstName}
+                onChange={handleInputChange}
+                error={errors.firstName}
+                required
+              />
+              <Input
+                label="Last Name"
+                name="lastName"
+                value={formData.lastName}
+                onChange={handleInputChange}
+                error={errors.lastName}
+                required
+              />
+            </div>
+
+            <Input
+              label="Email Address"
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleInputChange}
+              error={errors.email}
+              required
+            />
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Role
+              </label>
+              <select
+                name="role"
+                value={formData.role}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+              >
+                <option value="student">Student</option>
+                <option value="lecturer">Lecturer</option>
+              </select>
+            </div>
+
+            {formData.role === 'student' && (
+              <Input
+                label="Student ID"
+                name="studentId"
+                value={formData.studentId}
+                onChange={handleInputChange}
+                error={errors.studentId}
+                required
+              />
+            )}
+
+            <Input
+              label="Department (Optional)"
+              name="department"
+              value={formData.department}
+              onChange={handleInputChange}
+            />
+
+            <Input
+              label="Password"
+              type="password"
+              name="password"
+              value={formData.password}
+              onChange={handleInputChange}
+              error={errors.password}
+              required
+            />
+
+            <Input
+              label="Confirm Password"
+              type="password"
+              name="confirmPassword"
+              value={formData.confirmPassword}
+              onChange={handleInputChange}
+              error={errors.confirmPassword}
+              required
+            />
+          </div>
+
+          {errors.general && (
+            <div className="text-red-600 text-sm text-center">
+              {errors.general}
+            </div>
+          )}
+
+          <div>
+            <Button
+              type="submit"
+              className="w-full"
+              isLoading={isLoading}
+            >
+              Create Account
+            </Button>
+          </div>
+
+          <div className="text-center">
+            <span className="text-sm text-gray-600">
+              Already have an account?{' '}
+              <Link
+                to="/login"
+                className="font-medium text-primary-600 hover:text-primary-500"
+              >
+                Sign in
+              </Link>
+            </span>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default RegisterForm;
