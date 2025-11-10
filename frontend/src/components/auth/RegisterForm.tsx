@@ -42,14 +42,19 @@ const RegisterForm: React.FC = () => {
     }
     if (!formData.password) {
       newErrors.password = 'Password is required';
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
+    } else if (formData.password.length < 8) {
+      newErrors.password = 'Password must be at least 8 characters';
+    } else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/.test(formData.password)) {
+      newErrors.password = 'Password must contain uppercase, lowercase, number, and special character (@$!%*?&)';
     }
     if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = 'Passwords do not match';
     }
     if (formData.role === 'student' && !formData.studentId) {
       newErrors.studentId = 'Student ID is required for students';
+    }
+    if (formData.role === 'lecturer' && !formData.studentId) {
+      newErrors.studentId = 'Employee ID is required for lecturers';
     }
 
     setErrors(newErrors);
@@ -69,16 +74,26 @@ const RegisterForm: React.FC = () => {
         email: formData.email,
         password: formData.password,
         role: formData.role,
-        ...(formData.role === 'student' && { studentId: formData.studentId }),
+        ...(formData.role === 'student' && { registrationNumber: formData.studentId }),
+        ...(formData.role === 'lecturer' && { employeeId: formData.studentId }),
         ...(formData.department && { department: formData.department }),
       };
 
       await register(registerData);
-      navigate('/dashboard');
+      navigate('/verify-email', { state: { email: formData.email } });
     } catch (error: any) {
-      setErrors({
-        general: error.response?.data?.message || 'Registration failed. Please try again.'
-      });
+      // Handle backend validation errors
+      if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+        const backendErrors: Record<string, string> = {};
+        error.response.data.errors.forEach((err: any) => {
+          backendErrors[err.field] = err.message;
+        });
+        setErrors(backendErrors);
+      } else {
+        setErrors({
+          general: error.response?.data?.message || 'Registration failed. Please try again.'
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -144,6 +159,17 @@ const RegisterForm: React.FC = () => {
             {formData.role === 'student' && (
               <Input
                 label="Student ID"
+                name="studentId"
+                value={formData.studentId}
+                onChange={handleInputChange}
+                error={errors.studentId}
+                required
+              />
+            )}
+            
+            {formData.role === 'lecturer' && (
+              <Input
+                label="Employee ID"
                 name="studentId"
                 value={formData.studentId}
                 onChange={handleInputChange}

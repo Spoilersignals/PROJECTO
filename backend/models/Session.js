@@ -3,8 +3,15 @@ const mongoose = require('mongoose');
 const sessionSchema = new mongoose.Schema({
   course: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Course',
-    required: true
+    ref: 'Course'
+  },
+  courseCode: {
+    type: String,
+    trim: true
+  },
+  courseName: {
+    type: String,
+    trim: true
   },
   lecturer: {
     type: mongoose.Schema.Types.ObjectId,
@@ -26,9 +33,15 @@ const sessionSchema = new mongoose.Schema({
     default: 'lecture'
   },
   location: {
+    type: mongoose.Schema.Types.Mixed
+  },
+  wifiSSID: {
     type: String,
-    required: true,
     trim: true
+  },
+  allowedRadius: {
+    type: Number,
+    default: 50
   },
   startTime: {
     type: Date,

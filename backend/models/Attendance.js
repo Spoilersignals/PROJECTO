@@ -13,8 +13,19 @@ const attendanceSchema = new mongoose.Schema({
   },
   course: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Course',
-    required: true
+    ref: 'Course'
+  },
+  courseCode: {
+    type: String,
+    trim: true
+  },
+  courseName: {
+    type: String,
+    trim: true
+  },
+  wifiSSID: {
+    type: String,
+    trim: true
   },
   markedAt: {
     type: Date,

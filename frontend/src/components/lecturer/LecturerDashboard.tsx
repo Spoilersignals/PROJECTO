@@ -52,9 +52,10 @@ const LecturerDashboard: React.FC = () => {
   const fetchAttendanceRecords = async (sessionId: string) => {
     try {
       const records = await apiService.getAttendanceRecords(sessionId);
-      setAttendanceRecords(records);
+      setAttendanceRecords(Array.isArray(records) ? records : []);
     } catch (error) {
       console.error('Failed to fetch attendance records:', error);
+      setAttendanceRecords([]);
     }
   };
 

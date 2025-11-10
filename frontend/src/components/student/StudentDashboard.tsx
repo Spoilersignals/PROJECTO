@@ -24,10 +24,12 @@ const StudentDashboard: React.FC = () => {
         apiService.getSessions(),
         apiService.getStudentAttendance()
       ]);
-      setSessions(sessionsData.filter(session => session.isActive));
-      setMyAttendance(attendanceData);
+      setSessions(Array.isArray(sessionsData) ? sessionsData.filter(session => session.isActive) : []);
+      setMyAttendance(Array.isArray(attendanceData) ? attendanceData : []);
     } catch (error) {
       console.error('Failed to fetch data:', error);
+      setSessions([]);
+      setMyAttendance([]);
     } finally {
       setIsLoading(false);
     }
@@ -71,10 +73,10 @@ const StudentDashboard: React.FC = () => {
       await fetchData();
       setSelectedSession(null);
       
-      // Show success message (you can implement a toast notification here)
+      // Show success message
       alert('Attendance marked successfully!');
     } catch (error: any) {
-      setLocationError(error.message || 'Failed to mark attendance');
+      setLocationError(error.response?.data?.message || error.message || 'Failed to mark attendance');
     } finally {
       setIsMarkingAttendance(false);
     }
@@ -119,6 +121,12 @@ const StudentDashboard: React.FC = () => {
                     </p>
                     <p className="text-sm text-gray-600 mb-1">
                       Session: {session.sessionName}
+                    </p>
+                    <p className="text-sm text-blue-600 mb-1 flex items-center">
+                      <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                      </svg>
+                      Physical presence required
                     </p>
                     <p className="text-sm text-gray-600 mb-3">
                       Expires: {new Date(session.expiresAt).toLocaleString()}

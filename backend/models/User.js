@@ -52,7 +52,7 @@ const userSchema = new mongoose.Schema({
   institution: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Institution',
-    required: true
+    required: false
   },
   courses: [{
     type: mongoose.Schema.Types.ObjectId,
@@ -61,6 +61,16 @@ const userSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  isEmailVerified: {
+    type: Boolean,
+    default: false
+  },
+  emailVerificationToken: {
+    type: String
+  },
+  emailVerificationExpires: {
+    type: Date
   },
   lastLogin: {
     type: Date

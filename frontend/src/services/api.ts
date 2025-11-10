@@ -14,7 +14,7 @@ class ApiService {
 
   constructor() {
     this.api = axios.create({
-      baseURL: 'http://localhost:5000/api',
+      baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api',
       timeout: 10000,
       headers: {
         'Content-Type': 'application/json',
@@ -56,6 +56,18 @@ class ApiService {
     return response.data;
   }
 
+  async verifyEmail(email: string, verificationCode: string): Promise<AuthResponse> {
+    const response: AxiosResponse<AuthResponse> = await this.api.post('/auth/verify-email', {
+      email,
+      verificationCode
+    });
+    return response.data;
+  }
+
+  async resendVerification(email: string): Promise<void> {
+    await this.api.post('/auth/resend-verification', { email });
+  }
+
   async logout(): Promise<void> {
     await this.api.post('/auth/logout');
   }
@@ -73,13 +85,13 @@ class ApiService {
 
   // Attendance Session endpoints
   async createSession(sessionData: Partial<AttendanceSession>): Promise<AttendanceSession> {
-    const response: AxiosResponse<AttendanceSession> = await this.api.post('/sessions', sessionData);
-    return response.data;
+    const response: AxiosResponse<any> = await this.api.post('/sessions/simple', sessionData);
+    return response.data.data?.session || response.data.session || response.data;
   }
 
   async getSessions(): Promise<AttendanceSession[]> {
-    const response: AxiosResponse<AttendanceSession[]> = await this.api.get('/sessions');
-    return response.data;
+    const response: AxiosResponse<any> = await this.api.get('/sessions');
+    return response.data.data?.sessions || response.data.sessions || response.data;
   }
 
   async getSession(id: string): Promise<AttendanceSession> {
@@ -107,26 +119,29 @@ class ApiService {
   }
 
   // Attendance endpoints
-  async markAttendance(sessionId: string, location?: { latitude: number; longitude: number }): Promise<AttendanceRecord> {
-    const response: AxiosResponse<AttendanceRecord> = await this.api.post(`/sessions/${sessionId}/attend`, { location });
-    return response.data;
+  async markAttendance(sessionId: string, location?: { latitude: number; longitude: number }, wifiSSID?: string): Promise<AttendanceRecord> {
+    const response: AxiosResponse<any> = await this.api.post(`/attendance/${sessionId}`, { 
+      location,
+      wifiSSID 
+    });
+    return response.data.data?.attendance || response.data.attendance || response.data;
   }
 
   async getAttendanceRecords(sessionId: string): Promise<AttendanceRecord[]> {
-    const response: AxiosResponse<AttendanceRecord[]> = await this.api.get(`/sessions/${sessionId}/attendance`);
-    return response.data;
+    const response: AxiosResponse<any> = await this.api.get(`/sessions/${sessionId}/attendance`);
+    return response.data.data?.records || response.data.records || response.data;
   }
 
   async getStudentAttendance(studentId?: string): Promise<AttendanceRecord[]> {
     const endpoint = studentId ? `/attendance/student/${studentId}` : '/attendance/my';
-    const response: AxiosResponse<AttendanceRecord[]> = await this.api.get(endpoint);
-    return response.data;
+    const response: AxiosResponse<any> = await this.api.get(endpoint);
+    return response.data.data?.records || response.data.records || response.data;
   }
 
   // Course endpoints
   async getCourses(): Promise<Course[]> {
-    const response: AxiosResponse<Course[]> = await this.api.get('/courses');
-    return response.data;
+    const response: AxiosResponse<any> = await this.api.get('/courses');
+    return response.data.data?.courses || response.data.courses || response.data;
   }
 
   async createCourse(courseData: Partial<Course>): Promise<Course> {

@@ -31,6 +31,11 @@ const institutionSchema = new mongoose.Schema({
       default: ''
     }
   }],
+  allowedEmailDomains: [{
+    type: String,
+    lowercase: true,
+    trim: true
+  }],
   isActive: {
     type: Boolean,
     default: true

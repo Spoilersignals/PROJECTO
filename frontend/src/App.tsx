@@ -4,6 +4,7 @@ import { AuthProvider } from './hooks/useAuth';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import LoginForm from './components/auth/LoginForm';
 import RegisterForm from './components/auth/RegisterForm';
+import VerifyEmailForm from './components/auth/VerifyEmailForm';
 import Dashboard from './pages/Dashboard';
 import StudentDashboard from './components/student/StudentDashboard';
 import LecturerDashboard from './components/lecturer/LecturerDashboard';
@@ -18,6 +19,7 @@ function App() {
             {/* Public routes */}
             <Route path="/login" element={<LoginForm />} />
             <Route path="/register" element={<RegisterForm />} />
+            <Route path="/verify-email" element={<VerifyEmailForm />} />
             
             {/* Protected routes */}
             <Route 

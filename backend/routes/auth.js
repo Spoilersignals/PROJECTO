@@ -1,9 +1,11 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Institution = require('../models/Institution');
 const { authenticate } = require('../middleware/auth');
 const { validateUserRegistration, validateLogin } = require('../middleware/validation');
 const { extractClientIp } = require('../middleware/ipVerification');
+const { generateVerificationCode, sendVerificationEmail } = require('../utils/emailService');
 
 const router = express.Router();
 
@@ -40,6 +42,32 @@ router.post('/register', extractClientIp, validateUserRegistration, async (req, 
       institution
     } = req.body;
 
+    // Validate email domain against institution if institution is provided
+    if (institution) {
+      const institutionDoc = await Institution.findById(institution);
+      
+      if (!institutionDoc) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid institution'
+        });
+      }
+
+      if (institutionDoc.allowedEmailDomains && institutionDoc.allowedEmailDomains.length > 0) {
+        const emailDomain = email.split('@')[1]?.toLowerCase();
+        const isAllowedDomain = institutionDoc.allowedEmailDomains.some(
+          domain => emailDomain === domain.toLowerCase()
+        );
+
+        if (!isAllowedDomain) {
+          return res.status(400).json({
+            success: false,
+            message: `Email domain not allowed. This institution only accepts emails from: ${institutionDoc.allowedEmailDomains.join(', ')}`
+          });
+        }
+      }
+    }
+
     // Check if user already exists
     const existingUser = await User.findOne({
       $or: [
@@ -61,6 +89,10 @@ router.post('/register', extractClientIp, validateUserRegistration, async (req, 
       });
     }
 
+    // Generate verification code
+    const verificationCode = generateVerificationCode();
+    const verificationExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
     // Create new user
     const userData = {
       firstName,
@@ -68,7 +100,10 @@ router.post('/register', extractClientIp, validateUserRegistration, async (req, 
       email,
       password,
       role,
-      institution
+      institution,
+      emailVerificationToken: verificationCode,
+      emailVerificationExpires: verificationExpires,
+      isEmailVerified: false
     };
 
     if (role === 'student' && registrationNumber) {
@@ -82,28 +117,25 @@ router.post('/register', extractClientIp, validateUserRegistration, async (req, 
     const user = new User(userData);
     await user.save();
 
-    // Generate tokens
-    const { accessToken, refreshToken } = generateTokens(user._id);
+    // Send verification email
+    const emailResult = await sendVerificationEmail(email, verificationCode, firstName);
 
-    // Store refresh token
-    user.refreshTokens.push({
-      token: refreshToken,
-      createdAt: new Date()
-    });
-    await user.save();
+    if (!emailResult.success) {
+      console.error('Failed to send verification email:', emailResult.error);
+    }
 
     // Remove password from response
     const userResponse = user.toObject();
     delete userResponse.password;
     delete userResponse.refreshTokens;
+    delete userResponse.emailVerificationToken;
 
     res.status(201).json({
       success: true,
-      message: 'User registered successfully',
+      message: 'Registration successful. Please check your email for verification code.',
       data: {
         user: userResponse,
-        accessToken,
-        refreshToken
+        emailSent: emailResult.success
       }
     });
   } catch (error) {
@@ -115,6 +147,152 @@ router.post('/register', extractClientIp, validateUserRegistration, async (req, 
   }
 });
 
+// @route   POST /api/auth/verify-email
+// @desc    Verify email with code
+// @access  Public
+router.post('/verify-email', async (req, res) => {
+  try {
+    const { email, verificationCode } = req.body;
+
+    if (!email || !verificationCode) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and verification code are required'
+      });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    if (user.isEmailVerified) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email already verified'
+      });
+    }
+
+    if (!user.emailVerificationToken || !user.emailVerificationExpires) {
+      return res.status(400).json({
+        success: false,
+        message: 'No verification code found. Please request a new one.'
+      });
+    }
+
+    if (new Date() > user.emailVerificationExpires) {
+      return res.status(400).json({
+        success: false,
+        message: 'Verification code expired. Please request a new one.'
+      });
+    }
+
+    if (user.emailVerificationToken !== verificationCode) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid verification code'
+      });
+    }
+
+    user.isEmailVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpires = undefined;
+    await user.save();
+
+    // Generate tokens for auto-login
+    const { accessToken, refreshToken } = generateTokens(user._id);
+
+    user.refreshTokens.push({
+      token: refreshToken,
+      createdAt: new Date()
+    });
+    await user.save();
+
+    const userResponse = user.toObject();
+    delete userResponse.password;
+    delete userResponse.refreshTokens;
+
+    res.json({
+      success: true,
+      message: 'Email verified successfully',
+      data: {
+        user: userResponse,
+        accessToken,
+        refreshToken
+      }
+    });
+  } catch (error) {
+    console.error('Email verification error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during email verification'
+    });
+  }
+});
+
+// @route   POST /api/auth/resend-verification
+// @desc    Resend verification email
+// @access  Public
+router.post('/resend-verification', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required'
+      });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    if (user.isEmailVerified) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email already verified'
+      });
+    }
+
+    const verificationCode = generateVerificationCode();
+    const verificationExpires = new Date(Date.now() + 60 * 60 * 1000);
+
+    user.emailVerificationToken = verificationCode;
+    user.emailVerificationExpires = verificationExpires;
+    await user.save();
+
+    const emailResult = await sendVerificationEmail(email, verificationCode, user.firstName);
+
+    if (!emailResult.success) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send verification email. Please try again later.'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Verification code sent to your email'
+    });
+  } catch (error) {
+    console.error('Resend verification error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error resending verification email'
+    });
+  }
+});
+
 // @route   POST /api/auth/login
 // @desc    Login user
 // @access  Public
@@ -122,27 +300,43 @@ router.post('/login', extractClientIp, validateLogin, async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    console.log('Login attempt for:', email);
+
     // Find user and populate institution
     const user = await User.findOne({ email }).populate('institution');
 
     if (!user) {
+      console.log('User not found:', email);
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'
       });
     }
 
+    console.log('User found - isActive:', user.isActive, 'isEmailVerified:', user.isEmailVerified);
+
     if (!user.isActive) {
+      console.log('Account deactivated:', email);
       return res.status(401).json({
         success: false,
         message: 'Account is deactivated. Please contact administrator.'
       });
     }
 
+    if (!user.isEmailVerified) {
+      console.log('Email not verified:', email);
+      return res.status(401).json({
+        success: false,
+        message: 'Please verify your email before logging in. Check your inbox for the verification code.'
+      });
+    }
+
     // Check password
     const isPasswordValid = await user.comparePassword(password);
+    console.log('Password valid:', isPasswordValid);
 
     if (!isPasswordValid) {
+      console.log('Invalid password for:', email);
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'

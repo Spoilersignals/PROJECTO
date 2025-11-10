@@ -8,6 +8,80 @@ const { extractClientIp } = require('../middleware/ipVerification');
 
 const router = express.Router();
 
+// @route   POST /api/sessions/simple
+// @desc    Create a simple session without course dependency
+// @access  Private (Lecturer only)
+router.post('/simple', authenticate, authorize('lecturer', 'admin'), extractClientIp, async (req, res) => {
+  try {
+    const {
+      courseCode,
+      courseName,
+      sessionName,
+      wifiSSID,
+      latitude,
+      longitude,
+      allowedRadius,
+      expiresAt,
+      isActive
+    } = req.body;
+
+    if (!courseCode || !courseName || !sessionName) {
+      return res.status(400).json({
+        success: false,
+        message: 'Course code, course name, and session name are required'
+      });
+    }
+
+    // Generate allowed IP range based on lecturer's current IP
+    // This ensures students must be on the same network as the lecturer
+    const lecturerIp = req.clientIp || '127.0.0.1';
+    const allowedIpRanges = [lecturerIp];
+    
+    // If lecturer is on a local network, allow the subnet
+    if (lecturerIp.startsWith('192.168.') || lecturerIp.startsWith('10.')) {
+      const ipParts = lecturerIp.split('.');
+      const subnet = `${ipParts[0]}.${ipParts[1]}.${ipParts[2]}.0/24`;
+      allowedIpRanges.push(subnet);
+    }
+
+    const session = new Session({
+      courseCode,
+      courseName,
+      title: sessionName,
+      sessionType: 'lecture',
+      lecturer: req.user._id,
+      location: { latitude, longitude },
+      wifiSSID,
+      allowedRadius: allowedRadius || 50,
+      allowedIpRanges,
+      status: isActive ? 'active' : 'scheduled',
+      startTime: new Date(),
+      endTime: new Date(expiresAt || Date.now() + 2 * 60 * 60 * 1000),
+      attendanceWindowStart: new Date(),
+      attendanceWindowEnd: new Date(expiresAt || Date.now() + 2 * 60 * 60 * 1000),
+      metadata: {
+        createdByIp: req.clientIp
+      }
+    });
+
+    await session.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Session created successfully',
+      data: {
+        session
+      }
+    });
+  } catch (error) {
+    console.error('Create simple session error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error creating session'
+    });
+  }
+});
+
 // @route   POST /api/sessions
 // @desc    Create a new session
 // @access  Private (Lecturer only)
@@ -133,9 +207,10 @@ router.get('/', authenticate, validatePagination, async (req, res) => {
     if (req.user.role === 'lecturer') {
       filter.lecturer = req.user._id;
     } else if (req.user.role === 'student') {
-      // Students can only see sessions for courses they're enrolled in
-      const enrolledCourses = req.user.courses;
-      filter.course = { $in: enrolledCourses };
+      // Students can see all active sessions (simplified for WiFi-based attendance)
+      // If you want to restrict to enrolled courses only, uncomment below:
+      // const enrolledCourses = req.user.courses;
+      // filter.course = { $in: enrolledCourses };
     }
 
     // Additional filters
@@ -318,6 +393,82 @@ router.put('/:id', authenticate, authorize('lecturer', 'admin'), extractClientIp
     res.status(500).json({
       success: false,
       message: 'Server error updating session'
+    });
+  }
+});
+
+// @route   POST /api/sessions/:id/activate
+// @desc    Activate a session
+// @access  Private (Lecturer only)
+router.post('/:id/activate', authenticate, authorize('lecturer', 'admin'), validateObjectId('id'), async (req, res) => {
+  try {
+    const session = await Session.findById(req.params.id);
+
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Session not found'
+      });
+    }
+
+    if (req.user.role === 'lecturer' && !session.lecturer.equals(req.user._id)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied'
+      });
+    }
+
+    session.status = 'active';
+    await session.save();
+
+    res.json({
+      success: true,
+      message: 'Session activated successfully',
+      data: { session }
+    });
+  } catch (error) {
+    console.error('Activate session error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error activating session'
+    });
+  }
+});
+
+// @route   POST /api/sessions/:id/deactivate
+// @desc    Deactivate a session
+// @access  Private (Lecturer only)
+router.post('/:id/deactivate', authenticate, authorize('lecturer', 'admin'), validateObjectId('id'), async (req, res) => {
+  try {
+    const session = await Session.findById(req.params.id);
+
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Session not found'
+      });
+    }
+
+    if (req.user.role === 'lecturer' && !session.lecturer.equals(req.user._id)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied'
+      });
+    }
+
+    session.status = 'scheduled';
+    await session.save();
+
+    res.json({
+      success: true,
+      message: 'Session deactivated successfully',
+      data: { session }
+    });
+  } catch (error) {
+    console.error('Deactivate session error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error deactivating session'
     });
   }
 });

@@ -11,10 +11,10 @@ const router = express.Router();
 // @route   POST /api/attendance/:sessionId
 // @desc    Mark attendance for a session
 // @access  Private (Student only)
-router.post('/:sessionId', authenticate, authorize('student'), extractClientIp, verifySessionIp, validateObjectId('sessionId'), async (req, res) => {
+router.post('/:sessionId', authenticate, authorize('student'), extractClientIp, validateObjectId('sessionId'), async (req, res) => {
   try {
     const { sessionId } = req.params;
-    const { location, notes } = req.body;
+    const { location, notes, wifiSSID } = req.body;
     const studentId = req.user._id;
 
     // Get session details
@@ -45,17 +45,74 @@ router.post('/:sessionId', authenticate, authorize('student'), extractClientIp, 
       });
     }
 
-    // Check if student is enrolled in the course
-    const isEnrolled = session.course.students.some(student => 
-      student.equals(studentId)
-    );
-
-    if (!isEnrolled) {
-      return res.status(403).json({
-        success: false,
-        message: 'You are not enrolled in this course'
+    // Verify IP address is within allowed range (prevents remote attendance)
+    if (session.allowedIpRanges && session.allowedIpRanges.length > 0) {
+      const ipRangeCheck = require('ip-range-check');
+      const clientIp = req.clientIp;
+      
+      const isAllowedIp = session.allowedIpRanges.some(range => {
+        try {
+          return ipRangeCheck(clientIp, range);
+        } catch (error) {
+          console.error(`Invalid IP range: ${range}`, error);
+          return false;
+        }
       });
+
+      if (!isAllowedIp) {
+        return res.status(403).json({
+          success: false,
+          message: 'You must be connected to the classroom network to mark attendance. Please ensure you are physically present in the classroom.'
+        });
+      }
     }
+
+    // Verify location if session has location requirements
+    if (session.location && session.location.latitude && session.location.longitude) {
+      if (!location || !location.latitude || !location.longitude) {
+        return res.status(400).json({
+          success: false,
+          message: 'Location verification required. Please enable location services.'
+        });
+      }
+
+      // Calculate distance between student and session location (Haversine formula)
+      const R = 6371e3; // Earth radius in meters
+      const φ1 = session.location.latitude * Math.PI / 180;
+      const φ2 = location.latitude * Math.PI / 180;
+      const Δφ = (location.latitude - session.location.latitude) * Math.PI / 180;
+      const Δλ = (location.longitude - session.location.longitude) * Math.PI / 180;
+
+      const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ/2) * Math.sin(Δλ/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      const distance = R * c; // Distance in meters
+
+      const allowedRadius = session.allowedRadius || 50;
+      
+      if (distance > allowedRadius) {
+        return res.status(403).json({
+          success: false,
+          message: `You are too far from the classroom. You must be within ${allowedRadius} meters. Current distance: ${Math.round(distance)} meters.`
+        });
+      }
+    }
+
+    // Check if student is enrolled in the course (only for sessions with course reference)
+    if (session.course && session.course.students) {
+      const isEnrolled = session.course.students.some(student => 
+        student.equals(studentId)
+      );
+
+      if (!isEnrolled) {
+        return res.status(403).json({
+          success: false,
+          message: 'You are not enrolled in this course'
+        });
+      }
+    }
+    // For simplified sessions (without course reference), allow all students
 
     // Check if attendance already marked
     const existingAttendance = await Attendance.findOne({
@@ -82,17 +139,29 @@ router.post('/:sessionId', authenticate, authorize('student'), extractClientIp, 
       browser: userAgent.split(' ')[0] || 'Unknown'
     };
 
+    // Determine verification method based on what was checked
+    let verificationMethod = 'manual';
+    if (session.allowedIpRanges && session.allowedIpRanges.length > 0) {
+      verificationMethod = 'ip';
+    }
+    if (session.location && session.location.latitude) {
+      verificationMethod = verificationMethod === 'ip' ? 'ip+location' : 'location';
+    }
+
     // Create attendance record
     const attendance = new Attendance({
       session: sessionId,
       student: studentId,
-      course: session.course._id,
+      course: session.course?._id || null,
+      courseCode: session.courseCode || session.course?.code || null,
+      courseName: session.courseName || session.course?.name || null,
       markedAt: now,
       studentIp: req.clientIp,
       location: location || session.location,
       deviceInfo,
       notes: notes || '',
-      verificationMethod: 'ip'
+      verificationMethod,
+      wifiSSID: wifiSSID || null
     });
 
     await attendance.save();

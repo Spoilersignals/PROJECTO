@@ -35,9 +35,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = async (credentials: LoginRequest) => {
     try {
       const response = await apiService.login(credentials);
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
-      setUser(response.user);
+      const token = response.data.accessToken;
+      const user = response.data.user;
+      localStorage.setItem('token', token);
+      localStorage.setItem('refreshToken', response.data.refreshToken);
+      localStorage.setItem('user', JSON.stringify(user));
+      setUser(user);
     } catch (error) {
       throw error;
     }
@@ -46,9 +49,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const register = async (userData: RegisterRequest) => {
     try {
       const response = await apiService.register(userData);
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
-      setUser(response.user);
+      if (response.data?.accessToken) {
+        const token = response.data.accessToken;
+        const user = response.data.user;
+        localStorage.setItem('token', token);
+        localStorage.setItem('refreshToken', response.data.refreshToken);
+        localStorage.setItem('user', JSON.stringify(user));
+        setUser(user);
+      }
     } catch (error) {
       throw error;
     }

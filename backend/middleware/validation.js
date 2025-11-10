@@ -57,6 +57,7 @@ const validateUserRegistration = [
     .withMessage('Employee ID is required for lecturers'),
   
   body('institution')
+    .optional()
     .isMongoId()
     .withMessage('Please provide a valid institution ID'),
   
