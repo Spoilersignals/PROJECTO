@@ -13,6 +13,7 @@ const RegisterForm: React.FC = () => {
     confirmPassword: '',
     role: 'student' as 'student' | 'lecturer',
     studentId: '',
+    employeeId: '',
     department: '',
   });
   
@@ -53,8 +54,8 @@ const RegisterForm: React.FC = () => {
     if (formData.role === 'student' && !formData.studentId) {
       newErrors.studentId = 'Student ID is required for students';
     }
-    if (formData.role === 'lecturer' && !formData.studentId) {
-      newErrors.studentId = 'Employee ID is required for lecturers';
+    if (formData.role === 'lecturer' && !formData.employeeId) {
+      newErrors.employeeId = 'Employee ID is required for lecturers';
     }
 
     setErrors(newErrors);
@@ -75,7 +76,7 @@ const RegisterForm: React.FC = () => {
         password: formData.password,
         role: formData.role,
         ...(formData.role === 'student' && { registrationNumber: formData.studentId }),
-        ...(formData.role === 'lecturer' && { employeeId: formData.studentId }),
+        ...(formData.role === 'lecturer' && { employeeId: formData.employeeId }),
         ...(formData.department && { department: formData.department }),
       };
 
@@ -170,10 +171,10 @@ const RegisterForm: React.FC = () => {
             {formData.role === 'lecturer' && (
               <Input
                 label="Employee ID"
-                name="studentId"
-                value={formData.studentId}
+                name="employeeId"
+                value={formData.employeeId}
                 onChange={handleInputChange}
-                error={errors.studentId}
+                error={errors.employeeId}
                 required
               />
             )}
