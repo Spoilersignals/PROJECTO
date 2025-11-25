@@ -36,7 +36,16 @@ if (!fs.existsSync(uploadsDir)) {
 
 // Security middleware
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      connectSrc: ["'self'", process.env.CORS_ORIGIN || "https://smartwifiattendance.ondigitalocean.app", "http://localhost:5000"],
+      imgSrc: ["'self'", "data:", "blob:", process.env.CORS_ORIGIN || "https://smartwifiattendance.ondigitalocean.app"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'"]
+    }
+  }
 }));
 app.use(cors({
   origin: process.env.CORS_ORIGIN || process.env.FRONTEND_URL || 'http://localhost:3000',
