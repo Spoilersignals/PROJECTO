@@ -164,12 +164,13 @@ router.post('/register', extractClientIp, upload.single('profilePicture'), async
     const user = new User(userData);
     await user.save();
 
-    // Send verification email
-    const emailResult = await sendVerificationEmail(email, verificationCode, firstName);
-
-    if (!emailResult.success) {
-      console.error('Failed to send verification email:', emailResult.error);
-    }
+    // Send verification email (don't await to prevent blocking/timeout)
+    sendVerificationEmail(email, verificationCode, firstName)
+      .then(result => {
+        if (!result.success) console.error('Failed to send verification email:', result.error);
+        else console.log('Verification email sent successfully');
+      })
+      .catch(err => console.error('Email sending crashed:', err));
 
     // Remove password from response
     const userResponse = user.toObject();
@@ -182,11 +183,19 @@ router.post('/register', extractClientIp, upload.single('profilePicture'), async
       message: 'Registration successful. Please check your email for verification code.',
       data: {
         user: userResponse,
-        emailSent: emailResult.success
+        emailSent: true // Optimistic response
       }
     });
   } catch (error) {
     console.error('Registration error:', error);
+    // Check for duplicate key error (MongoDB code 11000)
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      return res.status(400).json({
+        success: false,
+        message: `${field.charAt(0).toUpperCase() + field.slice(1)} already exists`
+      });
+    }
     res.status(500).json({
       success: false,
       message: 'Server error during registration'
