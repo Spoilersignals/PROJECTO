@@ -83,23 +83,25 @@ const RegisterForm: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const registerData: any = {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        password: formData.password,
-        role: formData.role,
-      };
+      // Create FormData object for file upload
+      const formDataToSend = new FormData();
+      formDataToSend.append('firstName', formData.firstName);
+      formDataToSend.append('lastName', formData.lastName);
+      formDataToSend.append('email', formData.email);
+      formDataToSend.append('password', formData.password);
+      formDataToSend.append('role', formData.role);
 
       if (formData.role === 'student') {
-        registerData.registrationNumber = formData.studentId;
-        registerData.profilePicture = profilePicture;
+        formDataToSend.append('registrationNumber', formData.studentId);
+        if (profilePicture) {
+          formDataToSend.append('profilePicture', profilePicture);
+        }
       } else {
-        registerData.employeeId = formData.employeeId;
+        formDataToSend.append('employeeId', formData.employeeId);
       }
 
-      console.log('Registration data:', { ...registerData, password: '***' });
-      await register(registerData);
+      console.log('Registration data prepared');
+      await register(formDataToSend);
       navigate('/verify-email', { state: { email: formData.email } });
     } catch (error: any) {
       // Handle backend validation errors
