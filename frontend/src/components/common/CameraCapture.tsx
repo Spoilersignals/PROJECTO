@@ -85,8 +85,8 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCancel, isLo
         context.scale(-1, 1);
         context.drawImage(video, 0, 0, width, height);
         
-        // Convert to data URL for preview (compress slightly)
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        // Convert to data URL for preview (compress more for mobile networks)
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
         setCapturedImage(dataUrl);
       }
     }
