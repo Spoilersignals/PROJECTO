@@ -7,6 +7,7 @@ import RegisterForm from './components/auth/RegisterForm';
 import VerifyEmailForm from './components/auth/VerifyEmailForm';
 import Dashboard from './pages/Dashboard';
 import StudentDashboard from './components/student/StudentDashboard';
+import JoinCourse from './components/student/JoinCourse';
 import LecturerDashboard from './components/lecturer/LecturerDashboard';
 import AdminDashboard from './components/admin/AdminDashboard';
 
@@ -37,6 +38,15 @@ function App() {
               element={
                 <ProtectedRoute requiredRole="student">
                   <StudentDashboard />
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
+              path="/student/join-course" 
+              element={
+                <ProtectedRoute requiredRole="student">
+                  <JoinCourse />
                 </ProtectedRoute>
               } 
             />

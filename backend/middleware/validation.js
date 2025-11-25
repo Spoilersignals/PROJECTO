@@ -37,7 +37,7 @@ const validateUserRegistration = [
   body('password')
     .isLength({ min: 8 })
     .withMessage('Password must be at least 8 characters long')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/)
     .withMessage('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'),
   
   body('role')
@@ -46,14 +46,14 @@ const validateUserRegistration = [
   
   body('registrationNumber')
     .if(body('role').equals('student'))
-    .notEmpty()
     .trim()
+    .notEmpty()
     .withMessage('Registration number is required for students'),
   
   body('employeeId')
     .if(body('role').equals('lecturer'))
-    .notEmpty()
     .trim()
+    .notEmpty()
     .withMessage('Employee ID is required for lecturers'),
   
   body('institution')

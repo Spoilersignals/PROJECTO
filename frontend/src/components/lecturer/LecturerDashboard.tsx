@@ -160,6 +160,36 @@ const LecturerDashboard: React.FC = () => {
     await fetchAttendanceRecords(session.id);
   };
 
+  const downloadCSV = () => {
+    if (!selectedSession || attendanceRecords.length === 0) return;
+
+    const headers = ['Student Name', 'Registration Number', 'Timestamp', 'Status', 'Minutes Late', 'Session', 'Course'];
+    const csvRows = [headers.join(',')];
+
+    attendanceRecords.forEach(record => {
+      const row = [
+        `"${record.studentName || 'Unknown'}"`,
+        `"${record.registrationNumber || record.studentId}"`,
+        `"${new Date(record.timestamp).toLocaleString()}"`,
+        record.status,
+        record.minutesLate || 0,
+        `"${selectedSession.sessionName}"`,
+        `"${selectedSession.courseCode}"`
+      ];
+      csvRows.push(row.join(','));
+    });
+
+    const csvContent = csvRows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `attendance_${selectedSession.courseCode}_${selectedSession.sessionName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   if (isLoading) {
     return (
       <Layout title="Lecturer Dashboard">
@@ -284,15 +314,27 @@ const LecturerDashboard: React.FC = () => {
             required
           />
 
-          <Input
-            label="Required Wi-Fi Network (SSID)"
-            name="wifiSSID"
-            value={formData.wifiSSID}
-            onChange={handleInputChange}
-            error={formErrors.wifiSSID}
-            placeholder="e.g., University-WiFi"
-            required
-          />
+          <div>
+            <Input
+              label="Required Wi-Fi Network (SSID)"
+              name="wifiSSID"
+              value={formData.wifiSSID}
+              onChange={handleInputChange}
+              error={formErrors.wifiSSID}
+              placeholder="e.g., University-WiFi, kabu"
+              required
+            />
+            <div className="mt-1 text-xs text-gray-600 space-y-1">
+              <p>📶 The WiFi network name students should connect to</p>
+              <p><strong>How to find yours:</strong></p>
+              <ul className="ml-4 list-disc">
+                <li><strong>Windows:</strong> Click WiFi icon → see connected network</li>
+                <li><strong>Mac:</strong> Click WiFi icon → network with checkmark ✓</li>
+                <li><strong>Phone:</strong> Settings → WiFi → connected network</li>
+              </ul>
+              <p className="text-blue-600 font-medium mt-2">ℹ️ Students will see this as a guide. Network connection is verified by IP address.</p>
+            </div>
+          </div>
 
           <div className="grid grid-cols-2 gap-4">
             <Input
@@ -353,13 +395,20 @@ const LecturerDashboard: React.FC = () => {
       >
         {selectedSession && (
           <div className="space-y-4">
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h4 className="font-semibold text-gray-900">
-                {selectedSession.sessionName}
-              </h4>
-              <p className="text-sm text-gray-600">
-                {selectedSession.courseCode} - {new Date(selectedSession.createdAt).toLocaleString()}
-              </p>
+            <div className="bg-gray-50 rounded-lg p-4 flex justify-between items-center">
+              <div>
+                <h4 className="font-semibold text-gray-900">
+                  {selectedSession.sessionName}
+                </h4>
+                <p className="text-sm text-gray-600">
+                  {selectedSession.courseCode} - {new Date(selectedSession.createdAt).toLocaleString()}
+                </p>
+              </div>
+              {attendanceRecords.length > 0 && (
+                <Button onClick={downloadCSV} size="sm">
+                  Download CSV
+                </Button>
+              )}
             </div>
 
             {attendanceRecords.length === 0 ? (
@@ -372,7 +421,10 @@ const LecturerDashboard: React.FC = () => {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Student ID
+                        Student Name
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Registration Number
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Timestamp
@@ -386,7 +438,10 @@ const LecturerDashboard: React.FC = () => {
                     {attendanceRecords.map((record) => (
                       <tr key={record.id}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {record.studentId}
+                          {record.studentName || 'Unknown'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                          {record.registrationNumber || record.studentId}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {new Date(record.timestamp).toLocaleString()}
@@ -400,6 +455,7 @@ const LecturerDashboard: React.FC = () => {
                               : 'bg-red-100 text-red-800'
                           }`}>
                             {record.status}
+                            {record.isLate && record.minutesLate ? ` (${record.minutesLate} min)` : ''}
                           </span>
                         </td>
                       </tr>

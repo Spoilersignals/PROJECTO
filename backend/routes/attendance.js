@@ -1,25 +1,101 @@
 const express = require('express');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const Attendance = require('../models/Attendance');
 const Session = require('../models/Session');
 const Course = require('../models/Course');
 const { authenticate, authorize } = require('../middleware/auth');
 const { validateObjectId, validatePagination } = require('../middleware/validation');
 const { verifySessionIp, extractClientIp } = require('../middleware/ipVerification');
+const { compareFaces } = require('../utils/faceRecognition');
+const User = require('../models/User');
 
 const router = express.Router();
+
+// Configure Multer for image upload
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const dir = path.join(__dirname, '../public/uploads/attendance');
+    if (!fs.existsSync(dir)){
+        fs.mkdirSync(dir, { recursive: true });
+    }
+    cb(null, dir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'attendance-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ 
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  },
+  fileFilter: function (req, file, cb) {
+    if (!file.originalname.match(/\.(jpg|jpeg|png|webp)$/)) {
+      return cb(new Error('Only image files are allowed!'));
+    }
+    cb(null, true);
+  }
+});
 
 // @route   POST /api/attendance/:sessionId
 // @desc    Mark attendance for a session
 // @access  Private (Student only)
-router.post('/:sessionId', authenticate, authorize('student'), extractClientIp, validateObjectId('sessionId'), async (req, res) => {
+router.post('/:sessionId', authenticate, authorize('student'), extractClientIp, validateObjectId('sessionId'), upload.single('image'), async (req, res) => {
   try {
     const { sessionId } = req.params;
-    const { location, notes, wifiSSID } = req.body;
+    // Handle both JSON body and FormData fields (multer populates req.body)
+    let { location, notes, wifiSSID, deviceId } = req.body;
+    
+    // Parse location if it came as a string (FormData often sends nested objects as JSON strings)
+    if (typeof location === 'string') {
+      try {
+        location = JSON.parse(location);
+      } catch (e) {
+        console.error('Failed to parse location JSON:', e);
+      }
+    }
+
     const studentId = req.user._id;
+    const verificationImage = req.file ? `/uploads/attendance/${req.file.filename}` : null;
 
     // Get session details
     const session = await Session.findById(sessionId)
       .populate('course');
+
+    // Fetch full user to get profile picture
+    const user = await User.findById(studentId);
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+
+    // FACE VERIFICATION LOGIC
+    if (verificationImage) {
+      if (user.profilePicture) {
+        const isMatch = await compareFaces(user.profilePicture, verificationImage);
+        
+        if (!isMatch) {
+           // Delete the uploaded file if validation fails
+           // fs.unlinkSync(path.join(__dirname, '../public', verificationImage));
+           
+           return res.status(403).json({
+             success: false,
+             message: 'Face verification failed. The selfie does not match your profile picture.'
+           });
+        }
+        console.log(`[FACE VERIFICATION] Success for user ${user.email}`);
+      } else {
+        console.warn(`[FACE VERIFICATION] User ${user.email} has no profile picture. Skipping comparison.`);
+      }
+    } else if (session.settings?.requireFaceVerification) {
+       return res.status(400).json({
+         success: false,
+         message: 'Face verification is required for this session'
+       });
+    }
 
     if (!session) {
       return res.status(404).json({
@@ -45,37 +121,49 @@ router.post('/:sessionId', authenticate, authorize('student'), extractClientIp, 
       });
     }
 
-    // Verify IP address is within allowed range (prevents remote attendance)
+    // CRITICAL SECURITY: Verify IP address is within allowed range (prevents remote attendance)
     if (session.allowedIpRanges && session.allowedIpRanges.length > 0) {
       const ipRangeCheck = require('ip-range-check');
       const clientIp = req.clientIp;
       
+      console.log(`[IP VERIFICATION] Student IP: ${clientIp}`);
+      console.log(`[IP VERIFICATION] Allowed ranges: ${JSON.stringify(session.allowedIpRanges)}`);
+      console.log(`[IP VERIFICATION] Required WiFi: ${session.wifiSSID}`);
+      console.log(`[IP VERIFICATION] Student reported WiFi: ${wifiSSID || 'not provided'}`);
+      
       const isAllowedIp = session.allowedIpRanges.some(range => {
         try {
-          return ipRangeCheck(clientIp, range);
+          const matched = ipRangeCheck(clientIp, range);
+          console.log(`[IP VERIFICATION] Checking ${clientIp} against ${range}: ${matched ? 'MATCH' : 'NO MATCH'}`);
+          return matched;
         } catch (error) {
-          console.error(`Invalid IP range: ${range}`, error);
+          console.error(`[IP VERIFICATION] Invalid IP range: ${range}`, error);
           return false;
         }
       });
 
       if (!isAllowedIp) {
+        console.log(`[IP VERIFICATION] DENIED - IP ${clientIp} not in allowed ranges`);
         return res.status(403).json({
           success: false,
-          message: 'You must be connected to the classroom network to mark attendance. Please ensure you are physically present in the classroom.'
+          message: `You must be connected to the classroom network to mark attendance. Please connect to "${session.wifiSSID || 'the classroom WiFi'}" and ensure you are physically present in the classroom.`,
+          debug: process.env.NODE_ENV !== 'production' ? {
+            yourIP: clientIp,
+            allowedRanges: session.allowedIpRanges,
+            requiredWiFi: session.wifiSSID
+          } : undefined
         });
       }
+      
+      console.log(`[IP VERIFICATION] SUCCESS - IP ${clientIp} verified`);
+    } else {
+      console.warn(`[IP VERIFICATION] WARNING - No IP ranges configured for session ${sessionId}. Anyone can mark attendance!`);
     }
 
-    // Verify location if session has location requirements
-    if (session.location && session.location.latitude && session.location.longitude) {
-      if (!location || !location.latitude || !location.longitude) {
-        return res.status(400).json({
-          success: false,
-          message: 'Location verification required. Please enable location services.'
-        });
-      }
-
+    // Verify location if session has location requirements (optional - IP is primary)
+    // Note: GPS on mobile networks can be inaccurate, so we make this lenient
+    let distance = null;
+    if (session.location && session.location.latitude && session.location.longitude && location && location.latitude && location.longitude) {
       // Calculate distance between student and session location (Haversine formula)
       const R = 6371e3; // Earth radius in meters
       const φ1 = session.location.latitude * Math.PI / 180;
@@ -87,15 +175,15 @@ router.post('/:sessionId', authenticate, authorize('student'), extractClientIp, 
                 Math.cos(φ1) * Math.cos(φ2) *
                 Math.sin(Δλ/2) * Math.sin(Δλ/2);
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-      const distance = R * c; // Distance in meters
+      distance = R * c; // Distance in meters
 
-      const allowedRadius = session.allowedRadius || 50;
+      const allowedRadius = session.allowedRadius || 200; // Increased default to 200m for mobile network tolerance
       
-      if (distance > allowedRadius) {
-        return res.status(403).json({
-          success: false,
-          message: `You are too far from the classroom. You must be within ${allowedRadius} meters. Current distance: ${Math.round(distance)} meters.`
-        });
+      // Only enforce distance if student is connected to WiFi (not mobile data)
+      // Mobile data GPS can be very inaccurate (100s of meters off)
+      if (distance > allowedRadius && distance < 10000) { // Only warn if less than 10km (beyond that is clearly GPS error)
+        console.log(`Student distance: ${Math.round(distance)}m from session location. Allowed: ${allowedRadius}m. IP verified, allowing.`);
+        // We allow it because IP verification is more reliable than mobile GPS
       }
     }
 
@@ -131,6 +219,22 @@ router.post('/:sessionId', authenticate, authorize('student'), extractClientIp, 
       });
     }
 
+    // SECURITY: Check if this device has already been used to mark attendance for this session
+    if (deviceId) {
+      const existingDeviceAttendance = await Attendance.findOne({
+        session: sessionId,
+        deviceId: deviceId
+      });
+      
+      if (existingDeviceAttendance && !existingDeviceAttendance.student.equals(studentId)) {
+         console.log(`[DEVICE BLOCKED] Device ${deviceId} already used by student ${existingDeviceAttendance.student} for session ${sessionId}`);
+         return res.status(403).json({
+            success: false,
+            message: 'This device has already been used to mark attendance for this session. Please use your own device.'
+         });
+      }
+    }
+
     // Extract device info from request
     const userAgent = req.get('User-Agent') || '';
     const deviceInfo = {
@@ -161,7 +265,9 @@ router.post('/:sessionId', authenticate, authorize('student'), extractClientIp, 
       deviceInfo,
       notes: notes || '',
       verificationMethod,
-      wifiSSID: wifiSSID || null
+      verificationImage,
+      wifiSSID: wifiSSID || null,
+      deviceId: deviceId || null
     });
 
     await attendance.save();

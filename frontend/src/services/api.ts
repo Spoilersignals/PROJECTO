@@ -9,6 +9,27 @@ import {
   AuthResponse 
 } from '../types';
 
+import { getDeviceId } from '../utils/device';
+
+// Map backend session to frontend AttendanceSession
+const mapSession = (s: any): AttendanceSession => ({
+  id: s._id || s.id,
+  courseCode: s.course?.code || s.courseCode || '',
+  courseName: s.course?.name || s.courseName || '',
+  sessionName: s.title || s.sessionName || '',
+  lecturerId: s.lecturer?._id || s.lecturer || '',
+  lecturerName: s.lecturer?.firstName && s.lecturer?.lastName 
+    ? `${s.lecturer.firstName} ${s.lecturer.lastName}` 
+    : undefined,
+  wifiSSID: s.wifiSSID || '',
+  allowedRadius: s.allowedRadius || 50,
+  latitude: s.location?.latitude ?? s.latitude ?? 0,
+  longitude: s.location?.longitude ?? s.longitude ?? 0,
+  isActive: s.status === 'active',
+  expiresAt: s.endTime || s.expiresAt || new Date().toISOString(),
+  createdAt: s.startTime || s.createdAt || new Date().toISOString(),
+});
+
 class ApiService {
   private api: AxiosInstance;
 
@@ -47,13 +68,31 @@ class ApiService {
 
   // Auth endpoints
   async login(credentials: LoginRequest): Promise<AuthResponse> {
-    const response: AxiosResponse<AuthResponse> = await this.api.post('/auth/login', credentials);
+    const deviceId = getDeviceId();
+    const response: AxiosResponse<AuthResponse> = await this.api.post('/auth/login', {
+      ...credentials,
+      deviceId
+    });
     return response.data;
   }
 
-  async register(userData: RegisterRequest): Promise<AuthResponse> {
-    const response: AxiosResponse<AuthResponse> = await this.api.post('/auth/register', userData);
-    return response.data;
+  async register(userData: RegisterRequest | FormData): Promise<AuthResponse> {
+    const deviceId = getDeviceId();
+    const config = {
+      headers: userData instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : undefined
+    };
+
+    if (userData instanceof FormData) {
+      userData.append('deviceId', deviceId);
+      const response: AxiosResponse<AuthResponse> = await this.api.post('/auth/register', userData, config);
+      return response.data;
+    } else {
+      const response: AxiosResponse<AuthResponse> = await this.api.post('/auth/register', {
+        ...userData,
+        deviceId
+      }, config);
+      return response.data;
+    }
   }
 
   async verifyEmail(email: string, verificationCode: string): Promise<AuthResponse> {
@@ -74,7 +113,7 @@ class ApiService {
 
   // User endpoints
   async getProfile(): Promise<User> {
-    const response: AxiosResponse<User> = await this.api.get('/auth/profile');
+    const response: AxiosResponse<User> = await this.api.get('/auth/me');
     return response.data;
   }
 
@@ -86,12 +125,14 @@ class ApiService {
   // Attendance Session endpoints
   async createSession(sessionData: Partial<AttendanceSession>): Promise<AttendanceSession> {
     const response: AxiosResponse<any> = await this.api.post('/sessions/simple', sessionData);
-    return response.data.data?.session || response.data.session || response.data;
+    const raw = response.data.data?.session || response.data.session || response.data;
+    return mapSession(raw);
   }
 
   async getSessions(): Promise<AttendanceSession[]> {
     const response: AxiosResponse<any> = await this.api.get('/sessions');
-    return response.data.data?.sessions || response.data.sessions || response.data;
+    const raw = response.data.data?.sessions || response.data.sessions || response.data;
+    return Array.isArray(raw) ? raw.map(mapSession) : [];
   }
 
   async getSession(id: string): Promise<AttendanceSession> {
@@ -109,39 +150,107 @@ class ApiService {
   }
 
   async activateSession(id: string): Promise<AttendanceSession> {
-    const response: AxiosResponse<AttendanceSession> = await this.api.post(`/sessions/${id}/activate`);
-    return response.data;
+    const response: AxiosResponse<any> = await this.api.post(`/sessions/${id}/start`);
+    const raw = response.data.data?.session || response.data.session || response.data;
+    return mapSession(raw);
   }
 
   async deactivateSession(id: string): Promise<AttendanceSession> {
-    const response: AxiosResponse<AttendanceSession> = await this.api.post(`/sessions/${id}/deactivate`);
-    return response.data;
+    const response: AxiosResponse<any> = await this.api.post(`/sessions/${id}/deactivate`);
+    const raw = response.data.data?.session || response.data.session || response.data;
+    return mapSession(raw);
   }
 
   // Attendance endpoints
-  async markAttendance(sessionId: string, location?: { latitude: number; longitude: number }, wifiSSID?: string): Promise<AttendanceRecord> {
-    const response: AxiosResponse<any> = await this.api.post(`/attendance/${sessionId}`, { 
-      location,
-      wifiSSID 
-    });
-    return response.data.data?.attendance || response.data.attendance || response.data;
+  async markAttendance(sessionId: string, location?: { latitude: number; longitude: number }, wifiSSID?: string, imageFile?: File): Promise<AttendanceRecord> {
+    const deviceId = getDeviceId();
+    
+    if (imageFile) {
+      const formData = new FormData();
+      if (location) {
+        formData.append('location', JSON.stringify(location));
+      }
+      if (wifiSSID) {
+        formData.append('wifiSSID', wifiSSID);
+      }
+      formData.append('deviceId', deviceId);
+      formData.append('image', imageFile);
+      
+      const response: AxiosResponse<any> = await this.api.post(`/attendance/${sessionId}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      return response.data.data?.attendance || response.data.attendance || response.data;
+    } else {
+      const response: AxiosResponse<any> = await this.api.post(`/attendance/${sessionId}`, { 
+        location,
+        wifiSSID,
+        deviceId
+      });
+      return response.data.data?.attendance || response.data.attendance || response.data;
+    }
   }
 
   async getAttendanceRecords(sessionId: string): Promise<AttendanceRecord[]> {
     const response: AxiosResponse<any> = await this.api.get(`/sessions/${sessionId}/attendance`);
-    return response.data.data?.records || response.data.records || response.data;
+    const raw = response.data.data?.attendance || response.data.attendance || [];
+    
+    // Map backend attendance records to frontend format
+    return Array.isArray(raw) ? raw.map((record: any) => ({
+      id: record._id || record.id,
+      studentId: record.student?._id || record.student || '',
+      studentName: record.student ? `${record.student.firstName} ${record.student.lastName}` : '',
+      registrationNumber: record.student?.registrationNumber || '',
+      sessionId: record.session?._id || record.session || sessionId,
+      timestamp: record.markedAt || record.timestamp || '',
+      markedAt: record.markedAt,
+      status: record.status || 'present',
+      isLate: record.isLate,
+      minutesLate: record.minutesLate,
+      student: record.student
+    })) : [];
   }
 
   async getStudentAttendance(studentId?: string): Promise<AttendanceRecord[]> {
     const endpoint = studentId ? `/attendance/student/${studentId}` : '/attendance/my';
     const response: AxiosResponse<any> = await this.api.get(endpoint);
-    return response.data.data?.records || response.data.records || response.data;
+    const raw = response.data.data?.attendance || response.data.attendance || response.data.data?.records || response.data.records || response.data;
+    
+    // Map backend attendance records to frontend format
+    return Array.isArray(raw) ? raw.map((record: any) => ({
+      id: record._id || record.id,
+      studentId: record.student?._id || record.student || '',
+      studentName: record.student ? `${record.student.firstName} ${record.student.lastName}` : '',
+      registrationNumber: record.student?.registrationNumber || '',
+      sessionId: record.session?._id || record.session || '',
+      timestamp: record.markedAt || record.timestamp || '',
+      markedAt: record.markedAt,
+      status: record.status || 'present',
+      isLate: record.isLate,
+      minutesLate: record.minutesLate,
+      courseCode: record.courseCode || record.course?.code || '',
+      courseName: record.courseName || record.course?.name || '',
+      sessionTitle: record.session?.title || '',
+      student: record.student,
+      session: record.session,
+      course: record.course
+    })) : [];
   }
 
   // Course endpoints
   async getCourses(): Promise<Course[]> {
     const response: AxiosResponse<any> = await this.api.get('/courses');
-    return response.data.data?.courses || response.data.courses || response.data;
+    const rawCourses = response.data.data?.courses || response.data.courses || response.data;
+    
+    if (!Array.isArray(rawCourses)) return [];
+
+    return rawCourses.map((course: any) => ({
+      ...course,
+      id: course._id || course.id,
+      code: course.code || course.courseCode || '',
+      name: course.name || course.courseName || '',
+    }));
   }
 
   async createCourse(courseData: Partial<Course>): Promise<Course> {

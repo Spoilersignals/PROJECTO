@@ -9,13 +9,16 @@
     "test": "jest"
   },
   "dependencies": {
+    "@tensorflow/tfjs": "^4.22.0",
     "bcryptjs": "^2.4.3",
+    "canvas": "^3.2.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "express-async-errors": "^3.1.1",
     "express-rate-limit": "^7.1.5",
     "express-validator": "^7.0.1",
+    "face-api.js": "^0.22.2",
     "helmet": "^7.1.0",
     "ip-range-check": "^0.2.0",
     "joi": "^17.11.0",

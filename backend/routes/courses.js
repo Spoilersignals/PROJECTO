@@ -387,6 +387,63 @@ router.delete('/:id', authenticate, authorize('admin'), validateObjectId('id'), 
   }
 });
 
+// @route   POST /api/courses/:id/join
+// @desc    Student self-enroll in course
+// @access  Private (Student only)
+router.post('/:id/join', authenticate, authorize('student'), validateObjectId('id'), async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: 'Course not found'
+      });
+    }
+
+    if (!course.isActive) {
+      return res.status(400).json({
+        success: false,
+        message: 'This course is not currently active'
+      });
+    }
+
+    const studentId = req.user._id;
+
+    // Check if already enrolled
+    if (req.user.courses.includes(course._id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'You are already enrolled in this course'
+      });
+    }
+
+    // Update user courses
+    req.user.courses.push(course._id);
+    await req.user.save();
+
+    // Update course students list
+    if (!course.students.includes(studentId)) {
+      course.students.push(studentId);
+      await course.save();
+    }
+
+    res.json({
+      success: true,
+      message: `Successfully joined ${course.code} - ${course.name}`,
+      data: {
+        course
+      }
+    });
+  } catch (error) {
+    console.error('Join course error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error joining course'
+    });
+  }
+});
+
 // @route   POST /api/courses/:id/enroll
 // @desc    Bulk enroll students in course
 // @access  Private (Admin/Lecturer only)

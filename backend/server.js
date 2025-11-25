@@ -6,6 +6,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const morgan = require('morgan');
+const path = require('path');
+const fs = require('fs');
 
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
@@ -26,8 +28,16 @@ app.set('trust proxy', true);
 // Connect to database
 connectDB();
 
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, 'public/uploads/attendance');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true
@@ -48,8 +58,11 @@ app.use(limiter);
 app.use(morgan('combined'));
 
 // Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Serve static files (uploaded images)
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
 // API routes
 app.use('/api/auth', authRoutes);

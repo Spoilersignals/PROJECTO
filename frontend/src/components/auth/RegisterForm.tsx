@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { getDeviceName } from '../../utils/device';
 import Button from '../common/Button';
 import Input from '../common/Input';
 
@@ -16,6 +17,7 @@ const RegisterForm: React.FC = () => {
     employeeId: '',
     department: '',
   });
+  const [profilePicture, setProfilePicture] = useState<File | null>(null);
   
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -28,6 +30,15 @@ const RegisterForm: React.FC = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setProfilePicture(e.target.files[0]);
+      if (errors.profilePicture) {
+        setErrors(prev => ({ ...prev, profilePicture: '' }));
+      }
     }
   };
 
@@ -54,6 +65,9 @@ const RegisterForm: React.FC = () => {
     if (formData.role === 'student' && !formData.studentId) {
       newErrors.studentId = 'Student ID is required for students';
     }
+    if (formData.role === 'student' && !profilePicture) {
+      newErrors.profilePicture = 'Profile picture is required for identity verification';
+    }
     if (formData.role === 'lecturer' && !formData.employeeId) {
       newErrors.employeeId = 'Employee ID is required for lecturers';
     }
@@ -69,17 +83,22 @@ const RegisterForm: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const registerData = {
+      const registerData: any = {
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
         password: formData.password,
         role: formData.role,
-        ...(formData.role === 'student' && { registrationNumber: formData.studentId }),
-        ...(formData.role === 'lecturer' && { employeeId: formData.employeeId }),
-        ...(formData.department && { department: formData.department }),
       };
 
+      if (formData.role === 'student') {
+        registerData.registrationNumber = formData.studentId;
+        registerData.profilePicture = profilePicture;
+      } else {
+        registerData.employeeId = formData.employeeId;
+      }
+
+      console.log('Registration data:', { ...registerData, password: '***' });
       await register(registerData);
       navigate('/verify-email', { state: { email: formData.email } });
     } catch (error: any) {
@@ -158,14 +177,35 @@ const RegisterForm: React.FC = () => {
             </div>
 
             {formData.role === 'student' && (
-              <Input
-                label="Student ID"
-                name="studentId"
-                value={formData.studentId}
-                onChange={handleInputChange}
-                error={errors.studentId}
-                required
-              />
+              <>
+                <Input
+                  label="Student ID"
+                  name="studentId"
+                  value={formData.studentId}
+                  onChange={handleInputChange}
+                  error={errors.studentId}
+                  required
+                />
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Profile Picture (for Face Verification)
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+                    required
+                  />
+                  {errors.profilePicture && (
+                    <p className="mt-1 text-sm text-red-600">{errors.profilePicture}</p>
+                  )}
+                  <p className="mt-1 text-xs text-gray-500">
+                    Upload a clear photo of your face. This will be used to verify your identity during attendance marking.
+                  </p>
+                </div>
+              </>
             )}
             
             {formData.role === 'lecturer' && (
@@ -178,13 +218,6 @@ const RegisterForm: React.FC = () => {
                 required
               />
             )}
-
-            <Input
-              label="Department (Optional)"
-              name="department"
-              value={formData.department}
-              onChange={handleInputChange}
-            />
 
             <Input
               label="Password"
@@ -205,6 +238,24 @@ const RegisterForm: React.FC = () => {
               error={errors.confirmPassword}
               required
             />
+
+            {formData.role === 'student' && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 text-sm text-yellow-800">
+                <div className="font-bold mb-1 flex items-center">
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M12 2a10 10 0 100 20 10 10 0 000-20z" />
+                  </svg>
+                  Device Registration
+                </div>
+                <p>
+                  You are registering from: <strong>{getDeviceName()}</strong>
+                </p>
+                <p className="mt-1 text-xs text-yellow-700">
+                  For security, please use this same device when marking attendance.
+                  The system uses device binding to prevent fraud.
+                </p>
+              </div>
+            )}
           </div>
 
           {errors.general && (

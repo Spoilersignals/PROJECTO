@@ -36,9 +36,19 @@ const attendanceSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  location: {
+  deviceId: {
     type: String,
-    default: ''
+    trim: true
+  },
+  location: {
+    latitude: {
+      type: Number,
+      required: false
+    },
+    longitude: {
+      type: Number,
+      required: false
+    }
   },
   deviceInfo: {
     userAgent: String,
@@ -61,13 +71,17 @@ const attendanceSchema = new mongoose.Schema({
   },
   verificationMethod: {
     type: String,
-    enum: ['ip', 'manual', 'override'],
+    enum: ['ip', 'location', 'ip+location', 'manual', 'override'],
     default: 'ip'
   },
   notes: {
     type: String,
     trim: true,
     maxlength: 500
+  },
+  verificationImage: {
+    type: String,
+    trim: true
   },
   metadata: {
     sessionTitle: String,

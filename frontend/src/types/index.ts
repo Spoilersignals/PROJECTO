@@ -14,6 +14,7 @@ export interface AttendanceSession {
   courseName: string;
   sessionName: string;
   lecturerId: string;
+  lecturerName?: string;
   isActive: boolean;
   wifiSSID: string;
   allowedRadius: number;
@@ -26,15 +27,46 @@ export interface AttendanceSession {
 export interface AttendanceRecord {
   id: string;
   studentId: string;
+  studentName?: string;
+  registrationNumber?: string;
   sessionId: string;
   timestamp: string;
-  status: 'present' | 'late' | 'absent';
+  markedAt?: string;
+  status: 'present' | 'late' | 'absent' | 'excused';
+  isLate?: boolean;
+  minutesLate?: number;
+  courseCode?: string;
+  courseName?: string;
+  sessionTitle?: string;
+  student?: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    registrationNumber: string;
+    email: string;
+  };
+  session?: {
+    _id: string;
+    title: string;
+    startTime: string;
+    endTime: string;
+    sessionType?: string;
+  };
+  course?: {
+    _id: string;
+    name: string;
+    code: string;
+  };
 }
 
 export interface Course {
   id: string;
-  courseCode: string;
-  courseName: string;
+  courseCode: string; // Kept for compatibility
+  courseName: string; // Kept for compatibility
+  code: string; // Match backend
+  name: string; // Match backend
+  description?: string;
+  isActive?: boolean;
   lecturerId: string;
   students: User[];
 }
@@ -50,8 +82,9 @@ export interface RegisterRequest {
   email: string;
   password: string;
   role: 'student' | 'lecturer';
-  studentId?: string;
-  department?: string;
+  registrationNumber?: string;
+  employeeId?: string;
+  institution?: string;
 }
 
 export interface AuthResponse {

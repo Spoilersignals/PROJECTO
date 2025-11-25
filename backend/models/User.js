@@ -31,6 +31,12 @@ const userSchema = new mongoose.Schema({
     enum: ['student', 'lecturer', 'admin'],
     default: 'student'
   },
+  profilePicture: {
+    type: String,
+    required: function() {
+      return this.role === 'student';
+    }
+  },
   registrationNumber: {
     type: String,
     required: function() {
@@ -74,6 +80,10 @@ const userSchema = new mongoose.Schema({
   },
   lastLogin: {
     type: Date
+  },
+  deviceId: {
+    type: String,
+    trim: true
   },
   refreshTokens: [{
     token: String,

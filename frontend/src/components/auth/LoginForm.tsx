@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { getDeviceName } from '../../utils/device';
 import Button from '../common/Button';
 import Input from '../common/Input';
 
@@ -83,6 +84,15 @@ const LoginForm: React.FC = () => {
               required
               autoComplete="current-password"
             />
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-md p-4 text-sm text-blue-800">
+             <p>
+               Detected Device: <strong>{getDeviceName()}</strong>
+             </p>
+             <p className="mt-1 text-xs text-blue-700">
+               Ensure you are using your personal device for accurate attendance marking.
+             </p>
           </div>
 
           {errors.general && (

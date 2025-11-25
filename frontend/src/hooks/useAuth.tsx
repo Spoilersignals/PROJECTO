@@ -35,10 +35,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = async (credentials: LoginRequest) => {
     try {
       const response = await apiService.login(credentials);
-      const token = response.data.accessToken;
-      const user = response.data.user;
-      localStorage.setItem('token', token);
-      localStorage.setItem('refreshToken', response.data.refreshToken);
+      const { accessToken, refreshToken, user } = response.data;
+      localStorage.setItem('token', accessToken);
+      localStorage.setItem('refreshToken', refreshToken);
       localStorage.setItem('user', JSON.stringify(user));
       setUser(user);
     } catch (error) {
@@ -46,16 +45,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const register = async (userData: RegisterRequest) => {
+  const register = async (userData: any) => {
     try {
-      const response = await apiService.register(userData);
-      if (response.data?.accessToken) {
-        const token = response.data.accessToken;
-        const user = response.data.user;
-        localStorage.setItem('token', token);
-        localStorage.setItem('refreshToken', response.data.refreshToken);
-        localStorage.setItem('user', JSON.stringify(user));
-        setUser(user);
+      const formData = new FormData();
+      
+      // If we have a profile picture and it's a File object, use FormData
+      if (userData.profilePicture instanceof File) {
+        Object.keys(userData).forEach(key => {
+          if (key === 'profilePicture') {
+            formData.append(key, userData[key]);
+          } else if (userData[key] !== undefined && userData[key] !== null) {
+            formData.append(key, userData[key]);
+          }
+        });
+        await apiService.register(formData as any);
+      } else {
+        await apiService.register(userData);
       }
     } catch (error) {
       throw error;

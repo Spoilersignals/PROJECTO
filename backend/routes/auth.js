@@ -6,8 +6,41 @@ const { authenticate } = require('../middleware/auth');
 const { validateUserRegistration, validateLogin } = require('../middleware/validation');
 const { extractClientIp } = require('../middleware/ipVerification');
 const { generateVerificationCode, sendVerificationEmail } = require('../utils/emailService');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
 const router = express.Router();
+
+// Configure Multer for image upload
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    // Determine folder based on field name
+    let folder = 'misc';
+    if (file.fieldname === 'profilePicture') folder = 'profiles';
+    
+    const dir = path.join(__dirname, `../public/uploads/${folder}`);
+    if (!fs.existsSync(dir)){
+        fs.mkdirSync(dir, { recursive: true });
+    }
+    cb(null, dir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: function (req, file, cb) {
+    if (!file.originalname.match(/\.(jpg|jpeg|png|webp)$/)) {
+      return cb(new Error('Only image files are allowed!'));
+    }
+    cb(null, true);
+  }
+});
 
 // Generate JWT tokens
 const generateTokens = (userId) => {
@@ -29,8 +62,9 @@ const generateTokens = (userId) => {
 // @route   POST /api/auth/register
 // @desc    Register new user
 // @access  Public
-router.post('/register', extractClientIp, validateUserRegistration, async (req, res) => {
+router.post('/register', extractClientIp, upload.single('profilePicture'), async (req, res) => {
   try {
+    // If Multer is used, body fields are in req.body
     const {
       firstName,
       lastName,
@@ -39,8 +73,11 @@ router.post('/register', extractClientIp, validateUserRegistration, async (req, 
       role,
       registrationNumber,
       employeeId,
-      institution
+      institution,
+      deviceId
     } = req.body;
+
+    const profilePicture = req.file ? `/uploads/profiles/${req.file.filename}` : null;
 
     // Validate email domain against institution if institution is provided
     if (institution) {
@@ -89,6 +126,14 @@ router.post('/register', extractClientIp, validateUserRegistration, async (req, 
       });
     }
 
+    // Validate profile picture for students
+    if (role === 'student' && !profilePicture) {
+      return res.status(400).json({
+        success: false,
+        message: 'Students must upload a profile picture for verification'
+      });
+    }
+
     // Generate verification code
     const verificationCode = generateVerificationCode();
     const verificationExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
@@ -101,9 +146,11 @@ router.post('/register', extractClientIp, validateUserRegistration, async (req, 
       password,
       role,
       institution,
+      profilePicture,
       emailVerificationToken: verificationCode,
       emailVerificationExpires: verificationExpires,
-      isEmailVerified: false
+      isEmailVerified: false,
+      deviceId: deviceId || null
     };
 
     if (role === 'student' && registrationNumber) {
@@ -298,7 +345,7 @@ router.post('/resend-verification', async (req, res) => {
 // @access  Public
 router.post('/login', extractClientIp, validateLogin, async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, deviceId } = req.body;
 
     console.log('Login attempt for:', email);
 
@@ -341,6 +388,22 @@ router.post('/login', extractClientIp, validateLogin, async (req, res) => {
         success: false,
         message: 'Invalid credentials'
       });
+    }
+
+    // Device Verification
+    if (user.role === 'student') {
+      if (user.deviceId && deviceId && user.deviceId !== deviceId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Device verification failed. You can only login from your registered device.'
+        });
+      }
+
+      // If user doesn't have a device ID yet (e.g. old user), bind this device
+      if (!user.deviceId && deviceId) {
+        user.deviceId = deviceId;
+        await user.save();
+      }
     }
 
     // Generate tokens

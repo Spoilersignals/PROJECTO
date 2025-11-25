@@ -43,6 +43,11 @@ router.post('/simple', authenticate, authorize('lecturer', 'admin'), extractClie
       const subnet = `${ipParts[0]}.${ipParts[1]}.${ipParts[2]}.0/24`;
       allowedIpRanges.push(subnet);
     }
+    
+    console.log(`[SESSION CREATION] Lecturer IP: ${lecturerIp}`);
+    console.log(`[SESSION CREATION] Allowed IP ranges: ${JSON.stringify(allowedIpRanges)}`);
+    console.log(`[SESSION CREATION] Required WiFi SSID: ${wifiSSID}`);
+    console.log(`[SESSION CREATION] WARNING: All IPs in subnet ${allowedIpRanges[1] || allowedIpRanges[0]} can mark attendance!`);
 
     const session = new Session({
       courseCode,
@@ -185,6 +190,53 @@ router.post('/', authenticate, authorize('lecturer', 'admin'), extractClientIp, 
 // @route   GET /api/sessions
 // @desc    Get sessions with filtering and pagination
 // @access  Private
+router.post('/visible', authenticate, extractClientIp, async (req, res) => {
+  // New endpoint specifically for "Visible" sessions based on IP
+  try {
+    const clientIp = req.clientIp;
+    const ipRangeCheck = require('ip-range-check');
+
+    // Find all active sessions
+    const activeSessions = await Session.find({
+      status: 'active',
+      attendanceWindowEnd: { $gte: new Date() }
+    }).populate([
+      { path: 'course', select: 'name code' },
+      { path: 'lecturer', select: 'firstName lastName' }
+    ]);
+
+    // Filter by IP
+    const visibleSessions = activeSessions.filter(session => {
+      if (!session.allowedIpRanges || session.allowedIpRanges.length === 0) return true;
+      
+      return session.allowedIpRanges.some(range => {
+         try {
+           return ipRangeCheck(clientIp, range);
+         } catch (e) {
+           return false;
+         }
+      });
+    });
+
+    res.json({
+      success: true,
+      data: {
+        sessions: visibleSessions,
+        clientIp
+      }
+    });
+  } catch (error) {
+    console.error('Get visible sessions error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error retrieving sessions'
+    });
+  }
+});
+
+// @route   GET /api/sessions
+// @desc    Get sessions with filtering and pagination
+// @access  Private
 router.get('/', authenticate, validatePagination, async (req, res) => {
   try {
     const {
@@ -207,7 +259,9 @@ router.get('/', authenticate, validatePagination, async (req, res) => {
     if (req.user.role === 'lecturer') {
       filter.lecturer = req.user._id;
     } else if (req.user.role === 'student') {
-      // Students can see all active sessions (simplified for WiFi-based attendance)
+      // Students should only see active sessions that haven't expired
+      filter.status = 'active';
+      filter.attendanceWindowEnd = { $gte: new Date() };
       // If you want to restrict to enrolled courses only, uncomment below:
       // const enrolledCourses = req.user.courses;
       // filter.course = { $in: enrolledCourses };
