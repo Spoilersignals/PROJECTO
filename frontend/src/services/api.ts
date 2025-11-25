@@ -165,7 +165,13 @@ class ApiService {
   }
 
   // Attendance endpoints
-  async markAttendance(sessionId: string, location?: { latitude: number; longitude: number }, wifiSSID?: string, imageFile?: File): Promise<AttendanceRecord> {
+  async markAttendance(
+    sessionId: string, 
+    location?: { latitude: number; longitude: number }, 
+    wifiSSID?: string, 
+    imageFile?: File,
+    onProgress?: (progress: number) => void
+  ): Promise<AttendanceRecord> {
     const deviceId = getDeviceId();
     
     if (imageFile) {
@@ -182,6 +188,12 @@ class ApiService {
       const response: AxiosResponse<any> = await this.api.post(`/attendance/${sessionId}`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
+        },
+        onUploadProgress: (progressEvent) => {
+          if (onProgress && progressEvent.total) {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            onProgress(percentCompleted);
+          }
         }
       });
       return response.data.data?.attendance || response.data.attendance || response.data;

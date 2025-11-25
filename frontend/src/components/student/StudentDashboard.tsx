@@ -81,6 +81,8 @@ const StudentDashboard: React.FC = () => {
   const [showCamera, setShowCamera] = useState(false);
   const [pendingSession, setPendingSession] = useState<AttendanceSession | null>(null);
   const [capturedLocation, setCapturedLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [statusMessage, setStatusMessage] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -157,15 +159,30 @@ const StudentDashboard: React.FC = () => {
     }
     
     setIsMarkingAttendance(true);
+    setUploadProgress(0);
+    setStatusMessage('Initializing upload...');
 
     try {
       // 3. Send everything to backend
+      setStatusMessage('Uploading verification image...');
+      
       const record = await apiService.markAttendance(
         pendingSession.id, 
         capturedLocation, 
         currentWifiSSID || undefined,
-        file
+        file,
+        (progress) => {
+          setUploadProgress(progress);
+          if (progress === 100) {
+            setStatusMessage('Verifying face biometric data...');
+          } else {
+            setStatusMessage(`Uploading... ${progress}%`);
+          }
+        }
       );
+      
+      setStatusMessage('Attendance marked successfully!');
+      setUploadProgress(100);
       
       // 4. Success!
       await fetchData();
@@ -219,6 +236,8 @@ const StudentDashboard: React.FC = () => {
           onCapture={handlePhotoCapture}
           onCancel={handleCameraCancel}
           isLoading={isMarkingAttendance}
+          uploadProgress={uploadProgress}
+          statusMessage={statusMessage}
         />
       )}
 

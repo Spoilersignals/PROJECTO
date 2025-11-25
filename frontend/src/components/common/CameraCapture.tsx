@@ -5,9 +5,17 @@ interface CameraCaptureProps {
   onCapture: (file: File) => void;
   onCancel: () => void;
   isLoading?: boolean;
+  uploadProgress?: number;
+  statusMessage?: string;
 }
 
-const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCancel, isLoading = false }) => {
+const CameraCapture: React.FC<CameraCaptureProps> = ({ 
+  onCapture, 
+  onCancel, 
+  isLoading = false,
+  uploadProgress = 0,
+  statusMessage = ''
+}) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -159,13 +167,35 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onCancel, isLo
                 Take Photo
               </Button>
             ) : (
-              <div className="flex space-x-3">
-                <Button onClick={retakePhoto} variant="outline" className="flex-1" disabled={isLoading}>
-                  Retake
-                </Button>
-                <Button onClick={confirmPhoto} className="flex-1" isLoading={isLoading} disabled={isLoading}>
-                  Confirm & Submit
-                </Button>
+              <div className="space-y-4">
+                {isLoading ? (
+                  <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-blue-800">
+                        {statusMessage || 'Processing...'}
+                      </span>
+                      <span className="text-xs font-bold text-blue-600">{uploadProgress}%</span>
+                    </div>
+                    <div className="w-full bg-blue-200 rounded-full h-2.5">
+                      <div 
+                        className="bg-blue-600 h-2.5 rounded-full transition-all duration-300 ease-out" 
+                        style={{ width: `${uploadProgress}%` }}
+                      ></div>
+                    </div>
+                    <p className="text-xs text-blue-500 mt-2 text-center">
+                      Please wait, verifying your identity...
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex space-x-3">
+                    <Button onClick={retakePhoto} variant="outline" className="flex-1" disabled={isLoading}>
+                      Retake
+                    </Button>
+                    <Button onClick={confirmPhoto} className="flex-1" isLoading={isLoading} disabled={isLoading}>
+                      Confirm & Submit
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </div>
