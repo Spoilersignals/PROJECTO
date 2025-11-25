@@ -42,6 +42,9 @@ class ApiService {
       },
     });
 
+    console.log('API Service initialized with Base URL:', this.api.defaults.baseURL);
+
+
     this.api.interceptors.request.use(
       (config) => {
         const token = localStorage.getItem('token');
