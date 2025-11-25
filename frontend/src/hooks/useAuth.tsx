@@ -7,7 +7,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (credentials: LoginRequest) => Promise<void>;
-  register: (userData: RegisterRequest) => Promise<void>;
+  register: (userData: RegisterRequest | FormData) => Promise<void>;
   logout: () => void;
 }
 
@@ -45,23 +45,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const register = async (userData: any) => {
+  const register = async (userData: RegisterRequest | FormData) => {
     try {
-      const formData = new FormData();
-      
-      // If we have a profile picture and it's a File object, use FormData
-      if (userData.profilePicture instanceof File) {
-        Object.keys(userData).forEach(key => {
-          if (key === 'profilePicture') {
-            formData.append(key, userData[key]);
-          } else if (userData[key] !== undefined && userData[key] !== null) {
-            formData.append(key, userData[key]);
-          }
-        });
-        await apiService.register(formData as any);
-      } else {
-        await apiService.register(userData);
-      }
+      await apiService.register(userData);
     } catch (error) {
       throw error;
     }
