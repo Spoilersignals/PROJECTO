@@ -3,13 +3,11 @@ services:
 - name: backend
   source_dir: /backend
   github:
-    repo: Spoilersignals/BBIT
+    repo: Spoilersignals/PROJECTO
     branch: main
-  run_command: npm start
-  build_command: npm install
-  environment_slug: node-js
+  dockerfile_path: backend/Dockerfile
   instance_count: 1
-  instance_size_slug: basic-xxs
+  instance_size_slug: basic-xs
   http_port: 5000
   envs:
   - key: NODE_ENV
@@ -17,36 +15,29 @@ services:
   - key: PORT
     value: "5000"
   - key: MONGODB_URI
-    value: YOUR_MONGODB_CONNECTION_STRING
+    value: ${MONGODB_URI}
   - key: JWT_SECRET
-    value: YOUR_JWT_SECRET_HERE
+    value: ${JWT_SECRET}
   - key: JWT_REFRESH_SECRET
-    value: YOUR_REFRESH_SECRET_HERE
+    value: ${JWT_REFRESH_SECRET}
   - key: JWT_EXPIRES_IN
     value: 1h
   - key: JWT_REFRESH_EXPIRES_IN
     value: 7d
-  - key: BCRYPT_ROUNDS
-    value: "12"
+  - key: CORS_ORIGIN
+    value: ${APP_URL}
 
 - name: frontend
   source_dir: /frontend
   github:
-    repo: Spoilersignals/BBIT
+    repo: Spoilersignals/PROJECTO
     branch: main
-  build_command: npm run build
-  run_command: npx serve -s build -l $PORT
-  environment_slug: node-js
+  dockerfile_path: frontend/Dockerfile
   instance_count: 1
-  instance_size_slug: basic-xxs
-  http_port: 8080
+  instance_size_slug: basic-xs
+  http_port: 3000
   envs:
   - key: REACT_APP_API_URL
     value: ${backend.PUBLIC_URL}/api
   - key: GENERATE_SOURCEMAP
     value: "false"
-
-databases:
-- name: mongodb
-  engine: MONGODB
-  version: "5"
