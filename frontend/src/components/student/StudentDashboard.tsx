@@ -83,6 +83,7 @@ const StudentDashboard: React.FC = () => {
   const [capturedLocation, setCapturedLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [statusMessage, setStatusMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -161,6 +162,7 @@ const StudentDashboard: React.FC = () => {
     setIsMarkingAttendance(true);
     setUploadProgress(0);
     setStatusMessage('Initializing upload...');
+    setErrorMessage('');
 
     try {
       // 3. Send everything to backend
@@ -194,10 +196,8 @@ const StudentDashboard: React.FC = () => {
       // Show verification screen
       setVerificationRecord(record);
     } catch (error: any) {
-      // If it fails, go back to initial state but show error?
-      // Or just close camera and show alert
-      setShowCamera(false);
-      alert(error.response?.data?.message || error.message || 'Failed to mark attendance');
+      console.error("Attendance marking error:", error);
+      setErrorMessage(error.response?.data?.message || error.message || 'Failed to mark attendance');
     } finally {
       setIsMarkingAttendance(false);
     }
@@ -207,6 +207,7 @@ const StudentDashboard: React.FC = () => {
     setShowCamera(false);
     setPendingSession(null);
     setIsMarkingAttendance(false);
+    setErrorMessage('');
   };
 
   const isAttendanceMarked = (sessionId: string) => {
@@ -238,6 +239,7 @@ const StudentDashboard: React.FC = () => {
           isLoading={isMarkingAttendance}
           uploadProgress={uploadProgress}
           statusMessage={statusMessage}
+          errorMessage={errorMessage}
         />
       )}
 

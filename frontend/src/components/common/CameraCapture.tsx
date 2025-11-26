@@ -7,6 +7,7 @@ interface CameraCaptureProps {
   isLoading?: boolean;
   uploadProgress?: number;
   statusMessage?: string;
+  errorMessage?: string;
 }
 
 const CameraCapture: React.FC<CameraCaptureProps> = ({ 
@@ -14,7 +15,8 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({
   onCancel, 
   isLoading = false,
   uploadProgress = 0,
-  statusMessage = ''
+  statusMessage = '',
+  errorMessage = ''
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -168,6 +170,16 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({
               </Button>
             ) : (
               <div className="space-y-4">
+                {errorMessage && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div className="flex items-start">
+                      <svg className="h-5 w-5 text-red-400 mt-0.5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <p className="text-sm text-red-700">{errorMessage}</p>
+                    </div>
+                  </div>
+                )}
                 {isLoading ? (
                   <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
                     <div className="flex items-center justify-between mb-2">
