@@ -9,6 +9,7 @@ interface CameraCaptureProps {
   statusMessage?: string;
   errorMessage?: string;
   debugLogs?: string[];
+  onLog?: (msg: string) => void;
 }
 
 const CameraCapture: React.FC<CameraCaptureProps> = ({ 
@@ -18,8 +19,14 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({
   uploadProgress = 0,
   statusMessage = '',
   errorMessage = '',
-  debugLogs = []
+  debugLogs = [],
+  onLog
 }) => {
+  // Helper for logging
+  const log = (msg: string) => {
+    console.log(msg);
+    if (onLog) onLog(msg);
+  };
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -36,6 +43,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({
       const mediaStream = await navigator.mediaDevices.getUserMedia({ 
         video: { facingMode: 'user' } 
       });
+      log('Camera access granted');
       streamRef.current = mediaStream;
       setStream(mediaStream);
       if (videoRef.current) {
@@ -43,6 +51,8 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({
       }
       setError('');
     } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      log(`Error accessing camera: ${msg}`);
       console.error("Error accessing camera:", err);
       setError('Unable to access camera. Please allow camera permissions.');
     }
@@ -99,8 +109,11 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({
         
         // Convert to data URL for preview (compress more for mobile networks)
         const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+        log(`Photo taken. Size: ${Math.round(dataUrl.length / 1024)}KB`);
         setCapturedImage(dataUrl);
       }
+    } else {
+      log('Error: Video or Canvas ref missing');
     }
   };
 
@@ -109,21 +122,32 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({
   };
 
   const confirmPhoto = () => {
+    log('Confirm button clicked');
     if (capturedImage) {
-      // Convert data URL to File object
       try {
-        fetch(capturedImage)
-          .then(res => res.blob())
-          .then(blob => {
-            const file = new File([blob], "selfie.jpg", { type: "image/jpeg" });
-            onCapture(file);
-          })
-          .catch(err => {
-             console.error("Error converting image:", err);
-          });
+        log('Converting image to Blob...');
+        // Use synchronous conversion instead of fetch
+        const arr = capturedImage.split(',');
+        const mimeMatch = arr[0].match(/:(.*?);/);
+        const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while(n--){
+            u8arr[n] = bstr.charCodeAt(n);
+        }
+        const blob = new Blob([u8arr], {type:mime});
+        
+        log(`Blob created. Size: ${blob.size} bytes. Calling onCapture...`);
+        const file = new File([blob], "selfie.jpg", { type: "image/jpeg" });
+        onCapture(file);
       } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        log(`Error in confirmPhoto: ${msg}`);
         console.error("Error in confirmPhoto:", err);
       }
+    } else {
+      log('Error: No captured image found');
     }
   };
 

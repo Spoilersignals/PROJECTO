@@ -266,6 +266,7 @@ const StudentDashboard: React.FC = () => {
           statusMessage={statusMessage}
           errorMessage={errorMessage}
           debugLogs={debugLogs}
+          onLog={addLog}
         />
       )}
 
