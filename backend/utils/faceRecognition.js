@@ -38,7 +38,7 @@ const loadModels = async () => {
  * @param {number} maxDim - Maximum width or height
  * @returns {Canvas} - Resized canvas
  */
-const resizeImage = (image, maxDim = 600) => {
+const resizeImage = (image, maxDim = 800) => {
   const { width, height } = image;
   if (width <= maxDim && height <= maxDim) return image;
   
@@ -99,34 +99,38 @@ const compareFaces = async (sourceImagePath, targetImagePath) => {
 
     // Helper to detect face with fallback
     const detectFace = async (image, name) => {
-      // Try TinyFaceDetector first (fast)
-      // Score threshold: 0.3 is lenient enough for good detection
-      const tinyOptions = new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.3, inputSize: 416 });
+      // STRATEGY: Prioritize Accuracy over Speed (SSD Mobilenet first)
       
-      console.log(`[FaceAPI] Detecting face in ${name} image using TinyFaceDetector...`);
+      console.log(`[FaceAPI] Detecting face in ${name} image using SSD Mobilenet (High Accuracy)...`);
+      
+      // SSD Mobilenet (accurate)
+      // minConfidence 0.4 ensures we get a reasonably clear face
+      const ssdOptions = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.4 });
       let detection = await faceapi
-        .detectSingleFace(image, tinyOptions)
-        .withFaceLandmarks()
-        .withFaceDescriptor();
-
-      if (detection) {
-        console.log(`[FaceAPI] ${name} face found with TinyFaceDetector (Score: ${detection.detection.score.toFixed(3)})`);
-        return detection;
-      }
-
-      console.log(`[FaceAPI] No face found in ${name} with Tiny. Trying SSD Mobilenet (slower but more accurate)...`);
-      
-      // Fallback to SSD Mobilenet (accurate)
-      const ssdOptions = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.3 });
-      detection = await faceapi
         .detectSingleFace(image, ssdOptions)
         .withFaceLandmarks()
         .withFaceDescriptor();
       
       if (detection) {
         console.log(`[FaceAPI] ${name} face found with SSD Mobilenet (Score: ${detection.detection.score.toFixed(3)})`);
+        return detection;
+      }
+
+      console.log(`[FaceAPI] No face found in ${name} with SSD. Trying TinyFaceDetector (Fallback)...`);
+      
+      // Fallback: TinyFaceDetector (fast, but tweaked for better detection of small faces)
+      // inputSize 512 (up from 416) improves small face detection
+      const tinyOptions = new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.4, inputSize: 512 });
+      
+      detection = await faceapi
+        .detectSingleFace(image, tinyOptions)
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+
+      if (detection) {
+        console.log(`[FaceAPI] ${name} face found with TinyFaceDetector (Score: ${detection.detection.score.toFixed(3)})`);
       } else {
-        console.log(`[FaceAPI] No face found in ${name} with SSD Mobilenet either.`);
+        console.log(`[FaceAPI] No face found in ${name} with either detector.`);
       }
       
       return detection;
@@ -158,8 +162,9 @@ const compareFaces = async (sourceImagePath, targetImagePath) => {
     console.log(`[FaceAPI] Distance calculated: ${distance.toFixed(4)}`);
 
     // Threshold: 0.6 is standard. 0.5 is strict. 0.65 is lenient.
-    // Using 0.6 to ensure good accuracy (matching "reconiq" expectation)
-    return distance < 0.6;
+    // Increased from 0.6 to 0.65 to improve acceptance rate for legitimate users
+    // while still maintaining reasonable security
+    return distance < 0.65;
 
   } catch (error) {
     console.error('Face comparison error:', error);
