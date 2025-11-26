@@ -84,6 +84,12 @@ const StudentDashboard: React.FC = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [statusMessage, setStatusMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+
+  const addLog = (msg: string) => {
+    setDebugLogs(prev => [...prev, `${new Date().toLocaleTimeString()}: ${msg}`]);
+    console.log(msg);
+  };
 
   useEffect(() => {
     fetchData();
@@ -136,10 +142,14 @@ const StudentDashboard: React.FC = () => {
   const initiateAttendance = async (session: AttendanceSession) => {
     setIsMarkingAttendance(true);
     setLocationError('');
+    setDebugLogs([]); // Clear logs on new attempt
+    addLog(`Initiating attendance for session: ${session.id}`);
 
     try {
       // 1. Get location first
+      addLog('Getting location...');
       const location = await getCurrentLocation();
+      addLog(`Location captured: ${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`);
       setCapturedLocation(location);
       
       // 2. Move to camera step
@@ -148,14 +158,23 @@ const StudentDashboard: React.FC = () => {
       setIsMarkingAttendance(false);
       setShowCamera(true);
     } catch (error: any) {
+      addLog(`Location error: ${error.message}`);
       setLocationError(error.message || 'Failed to retrieve location');
       setIsMarkingAttendance(false);
     }
   };
 
   const handlePhotoCapture = async (file: File) => {
-    if (!pendingSession || !capturedLocation) {
-       console.error('Missing session or location data during capture');
+    addLog('Photo captured. Validating state...');
+    
+    if (!pendingSession) {
+       addLog('Error: pendingSession is null');
+       setErrorMessage('Internal Error: Session lost. Please retry.');
+       return;
+    }
+    if (!capturedLocation) {
+       addLog('Error: capturedLocation is null');
+       setErrorMessage('Internal Error: Location lost. Please retry.');
        return;
     }
     
@@ -163,6 +182,7 @@ const StudentDashboard: React.FC = () => {
     setUploadProgress(0);
     setStatusMessage('Initializing upload...');
     setErrorMessage('');
+    addLog(`Starting upload. Session: ${pendingSession.id}, WiFi: ${currentWifiSSID || 'None'}`);
 
     try {
       // 3. Send everything to backend
@@ -177,12 +197,15 @@ const StudentDashboard: React.FC = () => {
           setUploadProgress(progress);
           if (progress === 100) {
             setStatusMessage('Verifying face biometric data...');
+            addLog('Upload complete. Verifying face...');
           } else {
             setStatusMessage(`Uploading... ${progress}%`);
+            if (progress % 20 === 0) addLog(`Upload progress: ${progress}%`);
           }
         }
       );
       
+      addLog('Attendance marked successfully!');
       setStatusMessage('Attendance marked successfully!');
       setUploadProgress(100);
       
@@ -197,7 +220,9 @@ const StudentDashboard: React.FC = () => {
       setVerificationRecord(record);
     } catch (error: any) {
       console.error("Attendance marking error:", error);
-      setErrorMessage(error.response?.data?.message || error.message || 'Failed to mark attendance');
+      const msg = error.response?.data?.message || error.message || 'Failed to mark attendance';
+      addLog(`Error: ${msg}`);
+      setErrorMessage(msg);
     } finally {
       setIsMarkingAttendance(false);
     }
@@ -240,6 +265,7 @@ const StudentDashboard: React.FC = () => {
           uploadProgress={uploadProgress}
           statusMessage={statusMessage}
           errorMessage={errorMessage}
+          debugLogs={debugLogs}
         />
       )}
 

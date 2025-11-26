@@ -8,6 +8,7 @@ interface CameraCaptureProps {
   uploadProgress?: number;
   statusMessage?: string;
   errorMessage?: string;
+  debugLogs?: string[];
 }
 
 const CameraCapture: React.FC<CameraCaptureProps> = ({ 
@@ -16,7 +17,8 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({
   isLoading = false,
   uploadProgress = 0,
   statusMessage = '',
-  errorMessage = ''
+  errorMessage = '',
+  debugLogs = []
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -109,12 +111,19 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({
   const confirmPhoto = () => {
     if (capturedImage) {
       // Convert data URL to File object
-      fetch(capturedImage)
-        .then(res => res.blob())
-        .then(blob => {
-          const file = new File([blob], "selfie.jpg", { type: "image/jpeg" });
-          onCapture(file);
-        });
+      try {
+        fetch(capturedImage)
+          .then(res => res.blob())
+          .then(blob => {
+            const file = new File([blob], "selfie.jpg", { type: "image/jpeg" });
+            onCapture(file);
+          })
+          .catch(err => {
+             console.error("Error converting image:", err);
+          });
+      } catch (err) {
+        console.error("Error in confirmPhoto:", err);
+      }
     }
   };
 
@@ -176,7 +185,10 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({
                       <svg className="h-5 w-5 text-red-400 mt-0.5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      <p className="text-sm text-red-700">{errorMessage}</p>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-red-800">Submission Error</p>
+                        <p className="text-sm text-red-700 mt-1">{errorMessage}</p>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -211,6 +223,16 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({
               </div>
             )}
           </div>
+          
+          {/* Debug Logs */}
+          {debugLogs.length > 0 && (
+            <div className="max-h-40 overflow-y-auto bg-gray-900 p-4 text-xs font-mono text-green-400 border-t border-gray-700">
+              <div className="font-bold mb-1 text-white">Debug Logs:</div>
+              {debugLogs.map((log, i) => (
+                <div key={i} className="whitespace-nowrap">{log}</div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
